@@ -1,0 +1,23 @@
+import { ListView, Button, LineEdit, ComboBox, TabWidget, TextEdit, GroupBox } from "std-widgets.slint";
+
+import { LeftPanel } from "components/left-panel.slint";
+import { RightPanel } from "components/right-panel.slint";
+import { Backend } from "backend.slint";
+
+export { Backend }
+
+export component AppWindow inherits Window {
+    min-width: 900px;
+    min-height: 600px;
+    property <bool> rpanel-interactable: Backend.rpanel-interactable;
+    HorizontalLayout {
+        lpanel := LeftPanel {
+            min-width: 250px;
+        }
+
+        rpanel := RightPanel {
+            visible: rpanel-interactable;
+            horizontal-stretch: 1;
+        }
+    }
+}

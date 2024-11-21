@@ -1,0 +1,30 @@
+import { GroupBox, ListView, Button } from "std-widgets.slint";
+import { Backend } from "../backend.slint";
+
+component Profiles inherits GroupBox {
+    title: "Profiles";
+    ListView { }
+}
+
+component Toolbar inherits GroupBox {
+    HorizontalLayout {
+        alignment: end;
+        add := Button {
+            text: "󰐙";
+            clicked => {
+                Backend.clear-signal = !Backend.clear-signal;
+                Backend.rpanel-interactable = true;
+            }
+        }
+
+        delete := Button {
+            text: "";
+        }
+    }
+}
+
+export component LeftPanel inherits VerticalLayout {
+    Profiles { }
+
+    toolbar := Toolbar { }
+}
