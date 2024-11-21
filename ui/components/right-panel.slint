@@ -1,0 +1,78 @@
+import { GroupBox, TabWidget, ListView, TextEdit, Button, ComboBox, LineEdit } from "std-widgets.slint";
+import { Backend } from "../backend.slint";
+
+component ConversionEngine inherits GroupBox {
+    title: "Conversion engine";
+    ComboBox { }
+}
+
+component IOKind inherits GroupBox {
+    property <bool> clear-signal: Backend.clear-signal;
+    changed clear_signal => {
+        path.text = "";
+        extension.text = "";
+    }
+    in property <string> kind;
+    title: kind;
+    VerticalLayout {
+        HorizontalLayout {
+            path := LineEdit {
+                placeholder-text: "Relative path";
+            }
+
+            Button {
+                text: "";
+            }
+        }
+
+        extension := LineEdit {
+            placeholder-text: "File extension";
+        }
+    }
+}
+
+component ConversionEngineSettings inherits GroupBox {
+    title: "Conversion engine settings";
+    TabWidget {
+        Tab {
+            title: "Options";
+            TextEdit {}
+        }
+
+        Tab {
+            title: "Ignore patterns";
+            TextEdit {}
+        }
+    }
+}
+
+component Toolbar inherits GroupBox {
+    HorizontalLayout {
+        alignment: end;
+        Button {
+            horizontal-stretch: 0;
+            text: "";
+        }
+
+        Button {
+            horizontal-stretch: 0;
+            text: "";
+        }
+    }
+}
+
+export component RightPanel inherits VerticalLayout {
+    ConversionEngine { }
+
+    IOKind {
+        kind: "Source";
+    }
+
+    IOKind {
+        kind: "Output";
+    }
+
+    ConversionEngineSettings { }
+
+    Toolbar { }
+}

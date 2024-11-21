@@ -1,6 +1,16 @@
 [package]
 name = "tern"
+authors = ["Steven Merino <yuuhikaze@protonmail.com>"]
+description = "Modular batch conversion interface"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
 
 [dependencies]
+clap = { version = "4.5.21", features = ["derive"] }
+slint = "1.8.0"
+sqlx = { version = "0.8.2", features = ["runtime-tokio", "sqlite", "tls-native-tls"] }
+tokio = { version = "1.41.1", features = ["macros", "rt-multi-thread"] }
+
+[build-dependencies]
+slint-build = "1.8.0"
