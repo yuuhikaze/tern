@@ -1,9 +1,12 @@
-import { GroupBox, TabWidget, ListView, TextEdit, Button, ComboBox, LineEdit } from "std-widgets.slint";
+import { GroupBox, TabWidget, ListView, TextEdit, Button, ComboBox, LineEdit, AboutSlint } from "std-widgets.slint";
 import { Backend } from "../backend.slint";
 
 component ConversionEngine inherits GroupBox {
+    property <[string]> engines: Backend.engines;
     title: "Conversion engine";
-    ComboBox { }
+    ComboBox {
+        model: engines;
+    }
 }
 
 component IOKind inherits GroupBox {
@@ -36,12 +39,16 @@ component ConversionEngineSettings inherits GroupBox {
     TabWidget {
         Tab {
             title: "Options";
-            TextEdit {}
+            HorizontalLayout {
+                TextEdit { } // TODO: change for a more adhoc widget
+            }
         }
 
         Tab {
             title: "Ignore patterns";
-            TextEdit {}
+            HorizontalLayout {
+                TextEdit { }
+            }
         }
     }
 }
@@ -49,9 +56,27 @@ component ConversionEngineSettings inherits GroupBox {
 component Toolbar inherits GroupBox {
     HorizontalLayout {
         alignment: end;
+        popup := PopupWindow {
+            AboutSlint {}
+        }
+        Button {
+            horizontal-stretch: 0;
+            text: "";
+            clicked => {
+                popup.show();
+            }
+        }
+
+        Rectangle {
+            width: 10px;
+        }
+
         Button {
             horizontal-stretch: 0;
             text: "";
+            clicked => {
+                Backend.save_profile();
+            }
         }
 
         Button {
