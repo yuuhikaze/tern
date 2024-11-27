@@ -1,5 +1,7 @@
 export global Backend {
     in property <bool> clear-signal;
     in property <bool> rpanel-interactable;
+    in property <[string]> engines: [];
     pure callback save_profile();
+    // pure callback load_engines();
 }

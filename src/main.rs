@@ -1,6 +1,7 @@
 mod converter;
 mod database;
 mod interface;
+mod config;
 
 use clap::Parser;
 use interface::InterfaceBuilder;
@@ -15,19 +16,29 @@ struct ArgParser {
 
 #[tokio::main]
 async fn main() {
+    config::create_data_dir();
     let args = ArgParser::parse();
-    let db = Database::new();
-    /* let config = */ match db.init().await {
+    let mut db = Database::new();
+    let profiles = match db.init().await {
         database::Protocol::Creation => {
+            db.connect().await;
+            db.setup().await;
             let interface = InterfaceBuilder::new(args.tui);
             interface.spawn();
-            // interface.store_data();
+            // let config = interface.retrieve_data();
+            // db.store(config);
+            // config
             // db.load()
+            vec![]
         },
         database::Protocol::Access => {
-            // db.load()
+            db.connect().await;
+            db.fetch_profiles().await
         }
     };
+    for profile in profiles {
+        println!("{:#?}", profile);
+    }
     // let converter = Converter::new(config);
     // converter.run();
 }
