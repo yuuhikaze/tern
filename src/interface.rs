@@ -43,8 +43,6 @@ impl GraphicalInterface {
             .unwrap()
             .global::<Backend>()
             .on_save_profile(move || {
-                app.global::<Backend>().set_save_signal(!app.global::<Backend>().get_save_signal());
-                // spin up event loop by one interation
                 macro_rules! construct_vector_from_getter {
                     ( $x:ident ) => {{
                         let options = app.global::<Backend>().$x().to_string();
