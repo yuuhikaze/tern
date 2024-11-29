@@ -1,44 +1,57 @@
+#![feature(async_closure)]
+#![allow(incomplete_features)]
+#![feature(unsized_fn_params)]
+
+mod controller;
 mod converter;
 mod database;
 mod interface;
-mod config;
 
 use clap::Parser;
-use interface::InterfaceBuilder;
+use controller::{ArgParser, DatabaseEvent, InterfaceEvent};
 use database::Database;
-
-#[derive(Parser)]
-#[command(author, version, about, long_about = None)]
-struct ArgParser {
-    #[arg(long, action)]
-    tui: bool,
-}
+use interface::InterfaceBuilder;
+use tokio::{sync::mpsc, task};
 
 #[tokio::main]
 async fn main() {
-    config::create_data_dir();
+    controller::create_data_dir();
     let args = ArgParser::parse();
     let mut db = Database::new();
-    let profiles = match db.init().await {
-        database::Protocol::Creation => {
+    let mut database_event = db.init().await;
+    if args.profile_manager {
+        database_event = DatabaseEvent::Write;
+    }
+    match database_event {
+        DatabaseEvent::Write => {
+            let (tx, mut rx) = mpsc::channel(1);
+            let db_handle = async {
+                db.connect().await;
+                db.setup().await;
+            };
+            let ui_handle = async {
+                task::spawn_blocking(|| {
+                    let mut interface = InterfaceBuilder::build(args, tx);
+                    interface.spawn_and_run();
+                })
+                .await
+                .unwrap();
+            };
+            let interface_event_reader_handle = async {
+                while let Some(it) = rx.recv().await {
+                    match it {
+                        InterfaceEvent::Save(profile) => println!("{:#?}", profile),
+                        InterfaceEvent::Quit => break,
+                    };
+                }
+            };
+            futures::future::join3(db_handle, ui_handle, interface_event_reader_handle).await;
+        }
+        DatabaseEvent::Read => {
             db.connect().await;
-            db.setup().await;
-            let interface = InterfaceBuilder::new(args.tui);
-            interface.spawn();
-            // let config = interface.retrieve_data();
-            // db.store(config);
-            // config
-            // db.load()
-            vec![]
-        },
-        database::Protocol::Access => {
-            db.connect().await;
-            db.fetch_profiles().await
+            let profiles = db.fetch_profiles().await;
         }
     };
-    for profile in profiles {
-        println!("{:#?}", profile);
-    }
     // let converter = Converter::new(config);
     // converter.run();
 }

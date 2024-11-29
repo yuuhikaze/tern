@@ -1,11 +1,11 @@
 CREATE TABLE metadata(
-    idx INTEGER NOT NULL,
+    id INTEGER NOT NULL,
     file TEXT NOT NULL,
     mtime DATE NOT NULL
 );
 
-CREATE INDEX metadata_index
-ON metadata (idx);
+CREATE INDEX idx_metadata_id
+ON metadata (id);
 
 CREATE TABLE profiles(
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE profiles(
     output_file_extension VARCHAR(10) NOT NULL,
     options TEXT,
     ignore_patterns TEXT,
-    metadata_index INTEGER,
-    FOREIGN KEY (metadata_index)
-    REFERENCES metadata(idx)
+    metadata_id INTEGER,
+    FOREIGN KEY (metadata_id)
+    REFERENCES metadata(id)
 );
