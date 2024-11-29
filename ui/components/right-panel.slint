@@ -106,8 +106,13 @@ component Toolbar inherits GroupBox {
         Button {
             horizontal-stretch: 0;
             text: "";
+            property <int> odd_hack: 0;
             clicked => {
-                Backend.save-profile();
+                Backend.save-signal = !Backend.save-signal;
+                odd_hack += 1;
+                if (mod(odd_hack,2) == 0) {
+                    Backend.save-profile();
+                }
             }
         }
 
