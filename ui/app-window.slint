@@ -6,14 +6,39 @@ import { Backend } from "backend.slint";
 
 export { Backend }
 
+component DebugInfo inherits VerticalLayout {
+    alignment: start;
+    Text {
+        text: Backend.save-signal ? "True" : "False";
+    }
+
+    Text {
+        text: Backend.engine;
+    }
+
+    Text {
+        text: Backend.source-path;
+    }
+
+    Text {
+        text: Backend.options;
+    }
+
+    Text {
+        text: Backend.ignore-patterns;
+    }
+}
+
 export component AppWindow inherits Window {
-    min-width: 900px;
-    min-height: 600px;
+    preferred-width: 900px;
+    preferred-height: 600px;
     property <bool> rpanel-interactable: Backend.rpanel-interactable;
     HorizontalLayout {
         lpanel := LeftPanel {
             min-width: 250px;
         }
+
+        DebugInfo { }
 
         rpanel := RightPanel {
             visible: rpanel-interactable;

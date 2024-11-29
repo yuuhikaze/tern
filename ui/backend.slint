@@ -1,7 +1,17 @@
 export global Backend {
     in property <bool> clear-signal;
+    in-out property <bool> save-signal;
+
     in property <bool> rpanel-interactable;
     in property <[string]> engines: [];
-    pure callback save_profile();
-    // pure callback load_engines();
+
+    in property <string> engine;
+    in property <string> source-path;
+    in property <string> source-file-extension;
+    in property <string> output-path;
+    in property <string> output-file-extension;
+    in property <string> options;
+    in property <string> ignore-patterns;
+
+    pure callback save-profile();
 }

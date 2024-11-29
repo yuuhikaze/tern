@@ -2,21 +2,26 @@ import { GroupBox, TabWidget, ListView, TextEdit, Button, ComboBox, LineEdit, Ab
 import { Backend } from "../backend.slint";
 
 component ConversionEngine inherits GroupBox {
-    property <[string]> engines: Backend.engines;
     title: "Conversion engine";
-    ComboBox {
+    property <[string]> engines: Backend.engines;
+    property <bool> save-signal: Backend.save-signal;
+    changed save-signal => {
+        Backend.engine = combo.current-value;
+    }
+    combo := ComboBox {
         model: engines;
     }
 }
 
 component IOKind inherits GroupBox {
     property <bool> clear-signal: Backend.clear-signal;
-    changed clear_signal => {
+    out property <string> path: path.text;
+    out property <string> extension: extension.text;
+    changed clear-signal => {
         path.text = "";
         extension.text = "";
     }
     in property <string> kind;
-    title: kind;
     VerticalLayout {
         HorizontalLayout {
             path := LineEdit {
@@ -34,20 +39,46 @@ component IOKind inherits GroupBox {
     }
 }
 
+component Source inherits IOKind {
+    title: "Source";
+    property <bool> save-signal: Backend.save-signal;
+    changed save-signal => {
+        Backend.source-path = root.path;
+        Backend.source-file-extension = root.extension;
+    }
+}
+
+component Output inherits IOKind {
+    title: "Output";
+    property <bool> save-signal: Backend.save-signal;
+    changed save-signal => {
+        Backend.output-path = root.path;
+        Backend.output-file-extension = root.extension;
+    }
+}
+
 component ConversionEngineSettings inherits GroupBox {
     title: "Conversion engine settings";
     TabWidget {
         Tab {
             title: "Options";
             HorizontalLayout {
-                TextEdit { } // TODO: change for a more adhoc widget
+                property <bool> save-signal: Backend.save-signal;
+                changed save-signal => {
+                    Backend.options = options.text;
+                }
+                options := TextEdit { } // TODO: change for a more adhoc widget
             }
         }
 
         Tab {
             title: "Ignore patterns";
             HorizontalLayout {
-                TextEdit { }
+                property <bool> save-signal: Backend.save-signal;
+                changed save-signal => {
+                    Backend.ignore-patterns = ignore-patterns.text;
+                }
+                ignore-patterns := TextEdit { }
             }
         }
     }
@@ -57,8 +88,9 @@ component Toolbar inherits GroupBox {
     HorizontalLayout {
         alignment: end;
         popup := PopupWindow {
-            AboutSlint {}
+            AboutSlint { }
         }
+
         Button {
             horizontal-stretch: 0;
             text: "";
@@ -75,7 +107,7 @@ component Toolbar inherits GroupBox {
             horizontal-stretch: 0;
             text: "";
             clicked => {
-                Backend.save_profile();
+                Backend.save-profile();
             }
         }
 
@@ -89,13 +121,9 @@ component Toolbar inherits GroupBox {
 export component RightPanel inherits VerticalLayout {
     ConversionEngine { }
 
-    IOKind {
-        kind: "Source";
-    }
+    Source { }
 
-    IOKind {
-        kind: "Output";
-    }
+    Output { }
 
     ConversionEngineSettings { }
 
