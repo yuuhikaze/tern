@@ -1,6 +1,4 @@
 #![feature(async_closure)]
-#![allow(incomplete_features)]
-#![feature(unsized_fn_params)]
 
 mod controller;
 mod converter;
@@ -11,14 +9,19 @@ use clap::Parser;
 use controller::{ArgParser, DatabaseEvent, InterfaceEvent};
 use database::Database;
 use interface::InterfaceBuilder;
-use tokio::{sync::mpsc, task};
+use std::sync::Arc;
+use tokio::{
+    sync::{mpsc, Mutex},
+    task,
+};
 
 #[tokio::main]
 async fn main() {
     controller::create_data_dir();
     let args = ArgParser::parse();
-    let mut db = Database::new();
-    let mut database_event = db.init().await;
+    let db_arc_mutex = Arc::new(Mutex::new(Database::new()));
+    let db = Arc::clone(&db_arc_mutex);
+    let mut database_event = db.lock().await.init().await;
     if args.profile_manager {
         database_event = DatabaseEvent::Write;
     }
@@ -26,8 +29,8 @@ async fn main() {
         DatabaseEvent::Write => {
             let (tx, mut rx) = mpsc::channel(1);
             let db_handle = async {
-                db.connect().await;
-                db.setup().await;
+                db.lock().await.connect().await;
+                db.lock().await.setup().await;
             };
             let ui_handle = async {
                 task::spawn_blocking(|| {
@@ -40,7 +43,9 @@ async fn main() {
             let interface_event_reader_handle = async {
                 while let Some(it) = rx.recv().await {
                     match it {
-                        InterfaceEvent::Save(profile) => println!("{:#?}", profile),
+                        InterfaceEvent::Save(profile) => {
+                            db.lock().await.save_profile(profile).await
+                        }
                         InterfaceEvent::Quit => break,
                     };
                 }
@@ -48,8 +53,9 @@ async fn main() {
             futures::future::join3(db_handle, ui_handle, interface_event_reader_handle).await;
         }
         DatabaseEvent::Read => {
-            db.connect().await;
-            let profiles = db.fetch_profiles().await;
+            db.lock().await.connect().await;
+            let profiles = db.lock().await.fetch_profiles().await;
+            println!("{:#?}", profiles);
         }
     };
     // let converter = Converter::new(config);

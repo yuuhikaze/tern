@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fs, path::Path};
+use std::{collections::BTreeMap, fs, path::Path, sync::Arc};
 
 use sqlx::{migrate::MigrateDatabase, Sqlite, SqlitePool};
 
@@ -48,7 +48,6 @@ impl Database {
         let profiles_future = raw_profiles.into_iter().map(async |row| {
             use sqlx::Row;
             let id: u32 = row.try_get("id").unwrap();
-            let metadata_id: u32 = row.try_get("metadata_id").unwrap();
             let try_get_row_as_vector = |column| {
                 // &str: data received from database
                 // String: parse target
@@ -60,24 +59,19 @@ impl Database {
             };
             let options = try_get_row_as_vector("options");
             let ignore_patterns = try_get_row_as_vector("ignore_patterns");
-            let metadata = if metadata_id != 0 {
-                Some(
-                    sqlx::query("SELECT file, mtime FROM metadata WHERE id = $1;")
-                        .bind(id)
-                        .fetch_all(self.db.as_ref().unwrap())
-                        .await
-                        .unwrap()
-                        .into_iter()
-                        .fold(BTreeMap::new(), |mut acc, row| {
-                            let file: String = row.try_get("file").unwrap();
-                            let mtime: i32 = row.try_get("mtime").unwrap();
-                            acc.insert(file, mtime);
-                            acc
-                        }),
-                )
-            } else {
-                None
-            };
+            let metadata = sqlx::query("SELECT file, mtime FROM metadata WHERE id = $1;")
+                .bind(id)
+                .fetch_all(self.db.as_ref().unwrap())
+                .await
+                .unwrap()
+                .into_iter()
+                .fold(Option::<BTreeMap<String, i32>>::None, |acc, row| {
+                    let file: String = row.try_get("file").unwrap();
+                    let mtime: i32 = row.try_get("mtime").unwrap();
+                    let mut map = acc.unwrap_or_default();
+                    map.insert(file, mtime);
+                    Some(map)
+                });
             Profile {
                 engine: row.try_get("engine").unwrap(),
                 source_path: row.try_get("source_path").unwrap(),
@@ -90,5 +84,26 @@ impl Database {
             }
         });
         futures::future::join_all(profiles_future).await
+    }
+
+    pub async fn save_profile(&self, mut profile: Option<Arc<Profile>>) {
+        let profile_arc = profile.take().unwrap();
+        if let Ok(profile) = Arc::try_unwrap(profile_arc) {
+            sqlx::query(
+                r#"
+INSERT INTO profiles(engine, source_path, source_file_extension, output_path, output_file_extension)
+VALUES
+    ($1, $2, $3, $4, $5)
+"#,
+            )
+            .bind(profile.engine)
+            .bind(profile.source_path)
+            .bind(profile.source_file_extension)
+            .bind(profile.output_path)
+            .bind(profile.output_file_extension)
+            .execute(self.db.as_ref().unwrap())
+            .await
+            .unwrap();
+        }
     }
 }

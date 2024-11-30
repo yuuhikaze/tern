@@ -22,7 +22,7 @@ pub enum DatabaseEvent {
     Read,
 }
 pub enum InterfaceEvent {
-    Save(Arc<Profile>),
+    Save(Option<Arc<Profile>>),
     Quit,
 }
 

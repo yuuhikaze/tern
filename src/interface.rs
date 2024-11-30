@@ -2,7 +2,7 @@ slint::include_modules!();
 
 use std::rc::Rc;
 
-use slint::{SharedString, VecModel};
+use slint::{Model, SharedString, VecModel};
 
 use crate::controller::{self, ArgParser, InterfaceEvent, Profile};
 use std::sync::Arc;
@@ -55,7 +55,7 @@ impl GraphicalInterface {
                 }
                 let options = construct_vector_from_getter!(get_options);
                 let ignore_patterns = construct_vector_from_getter!(get_ignore_patterns);
-                let profile = Arc::new(Profile {
+                let profile_arc = Arc::new(Profile {
                     engine: app.global::<Backend>().get_engine().to_string(),
                     source_path: app.global::<Backend>().get_source_path().to_string(),
                     source_file_extension: app
@@ -72,9 +72,9 @@ impl GraphicalInterface {
                     metadata: None,
                 });
                 let tx = tx.clone();
-                let profile = Arc::clone(&profile);
+                let profile = Arc::clone(&profile_arc);
                 tokio::spawn(async move {
-                    if (tx.unwrap().send(InterfaceEvent::Save(profile)).await).is_err() {
+                    if (tx.unwrap().send(InterfaceEvent::Save(Some(profile))).await).is_err() {
                         println!("Receiver dropped");
                     }
                 });
@@ -91,6 +91,20 @@ impl GraphicalInterface {
             .unwrap()
             .global::<Backend>()
             .set_engines(engines_model.clone().into());
+        // set focus candidate
+        let app = app_weak.unwrap();
+        self.app
+            .as_ref()
+            .unwrap()
+            .global::<Backend>()
+            .on_set_focus_candidate(move |focus_candidate: FocusCandidate| {
+                let focus_candidate_list = app.global::<Backend>().get_focus_candidate_list();
+                let matched_index = focus_candidate_list
+                    .as_any()
+                    .downcast_ref::<VecModel<FocusCandidate>>()
+                    .unwrap().iter().position(|e| e == focus_candidate).unwrap();
+                app.global::<Backend>().set_focus_candidate_index(matched_index as i32);
+            });
     }
 
     fn clean(&mut self) {

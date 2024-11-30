@@ -1,6 +1,42 @@
+export enum FocusCandidate {
+    add-button,
+    conversion-engine-combo-box,
+    source-path-field,
+    source-file-extension-field,
+    output-path-field,
+    output-file-extension-field,
+    options-text-area,
+    ignore-patterns-text-area,
+    save-button
+}
+
 export global Backend {
+    in-out property <int> focus-candidate-index: -1;
+    out property <[FocusCandidate]> focus-candidate-list: [
+        FocusCandidate.add-button,
+        FocusCandidate.conversion-engine-combo-box,
+        FocusCandidate.source-path-field,
+        FocusCandidate.source-file-extension-field,
+        FocusCandidate.output-path-field,
+        FocusCandidate.output-file-extension-field,
+        FocusCandidate.options-text-area,
+        FocusCandidate.ignore-patterns-text-area,
+        FocusCandidate.save-button
+    ];
+
+    out property <FocusCandidate> focus-candidate;
+    public function update-focus-candidate(i: int) {
+        focus-candidate-index += i;
+        if (focus-candidate-index == focus-candidate-list.length) {
+            focus-candidate-index = 0;
+        } else if (focus-candidate-index == -1) {
+            focus-candidate-index = focus-candidate-list.length - 1;
+        }
+        focus-candidate = focus-candidate-list[focus-candidate-index];
+    }
+
     in property <bool> clear-signal;
-    in-out property <bool> save-signal;
+    in property <bool> save-signal;
 
     in property <bool> rpanel-interactable;
     in property <[string]> engines: [];
@@ -14,4 +50,5 @@ export global Backend {
     in property <string> ignore-patterns;
 
     pure callback save-profile();
+    pure callback set_focus_candidate(FocusCandidate);
 }

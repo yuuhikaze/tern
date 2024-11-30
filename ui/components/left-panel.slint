@@ -1,5 +1,5 @@
 import { GroupBox, ListView, Button } from "std-widgets.slint";
-import { Backend } from "../backend.slint";
+import { Backend, FocusCandidate } from "../backend.slint";
 
 component Profiles inherits GroupBox {
     title: "Profiles";
@@ -7,23 +7,39 @@ component Profiles inherits GroupBox {
 }
 
 component Toolbar inherits GroupBox {
+    forward-focus: add;
     HorizontalLayout {
         alignment: end;
+        property <FocusCandidate> focus-candidate: Backend.focus-candidate;
+        function focus-helper() {
+            if (focus-candidate == FocusCandidate.add-button) {
+                add.focus();
+            }
+        }
+        changed focus-candidate => {
+            focus-helper();
+        }
         add := Button {
             text: "󰐙";
             clicked => {
                 Backend.clear-signal = !Backend.clear-signal;
                 Backend.rpanel-interactable = true;
+                Backend.set_focus_candidate(FocusCandidate.add-button);
             }
         }
 
         delete := Button {
             text: "";
+            init => {
+                Backend.update-focus-candidate(1);
+            }
         }
     }
 }
 
 export component LeftPanel inherits VerticalLayout {
+    forward-focus: toolbar;
+
     Profiles { }
 
     toolbar := Toolbar { }
