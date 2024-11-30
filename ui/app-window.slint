@@ -10,14 +10,30 @@ export component AppWindow inherits Window {
     preferred-width: 900px;
     preferred-height: 600px;
     property <bool> rpanel-interactable: Backend.rpanel-interactable;
-    HorizontalLayout {
-        lpanel := LeftPanel {
-            min-width: 250px;
+    forward-focus: lpanel;
+
+    FocusScope {
+        HorizontalLayout {
+            lpanel := LeftPanel {
+                min-width: 250px;
+            }
+
+            RightPanel {
+                visible: rpanel-interactable;
+                horizontal-stretch: 1;
+            }
         }
 
-        rpanel := RightPanel {
-            visible: rpanel-interactable;
-            horizontal-stretch: 1;
+        key-pressed(event) => {
+            if (event.modifiers.control && event.text == "j") {
+                Backend.update-focus-candidate(Backend.rpanel-interactable ? 1 : 0);
+                accept
+            } else if (event.modifiers.control && event.text == "k") {
+                Backend.update-focus-candidate(Backend.rpanel-interactable ? -1 : 0);
+                accept
+            } else {
+                reject
+            }
         }
     }
 }

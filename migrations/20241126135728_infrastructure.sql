@@ -15,8 +15,5 @@ CREATE TABLE profiles(
     output_path TEXT NOT NULL,
     output_file_extension VARCHAR(10) NOT NULL,
     options TEXT,
-    ignore_patterns TEXT,
-    metadata_id INTEGER,
-    FOREIGN KEY (metadata_id)
-    REFERENCES metadata(id)
+    ignore_patterns TEXT
 );

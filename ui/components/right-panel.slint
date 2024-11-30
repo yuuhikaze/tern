@@ -1,5 +1,5 @@
 import { GroupBox, TabWidget, ListView, TextEdit, Button, ComboBox, LineEdit, AboutSlint } from "std-widgets.slint";
-import { Backend } from "../backend.slint";
+import { Backend, FocusCandidate } from "../backend.slint";
 
 component ConversionEngine inherits GroupBox {
     title: "Conversion engine";
@@ -8,24 +8,56 @@ component ConversionEngine inherits GroupBox {
     changed save-signal => {
         Backend.engine = combo.current-value;
     }
+    property <FocusCandidate> focus-candidate: Backend.focus-candidate;
+    function focus-helper() {
+        if (focus-candidate == FocusCandidate.conversion-engine-combo-box) {
+            combo.focus();
+        }
+    }
+    changed focus-candidate => {
+        focus-helper();
+    }
     combo := ComboBox {
         model: engines;
     }
 }
 
-component IOKind inherits GroupBox {
+component Source inherits GroupBox {
+    title: "Source";
     property <bool> clear-signal: Backend.clear-signal;
-    out property <string> path: path.text;
-    out property <string> extension: extension.text;
     changed clear-signal => {
-        path.text = "";
-        extension.text = "";
+        source-path.text = "";
+        source-file-extension.text = "";
     }
-    in property <string> kind;
+    property <bool> save-signal: Backend.save-signal;
+    changed save-signal => {
+        Backend.source-path = source-path.text;
+        Backend.source-file-extension = source-file-extension.text;
+    }
+    property <FocusCandidate> focus-candidate: Backend.focus-candidate;
+    function focus-helper() {
+        if (focus-candidate == FocusCandidate.source-path-field) {
+            source-path.focus();
+        } else if (focus-candidate == FocusCandidate.source-file-extension-field) {
+            source-file-extension.focus();
+        }
+    }
+    changed focus-candidate => {
+        focus-helper();
+    }
     VerticalLayout {
         HorizontalLayout {
-            path := LineEdit {
+            source-path := LineEdit {
                 placeholder-text: "Relative path";
+                property <bool> _: self.has-focus;
+                function set-focus-helper() {
+                    if (self.has-focus == true) {
+                        Backend.set_focus_candidate(FocusCandidate.source-path-field);
+                    }
+                }
+                changed has-focus => {
+                    set-focus-helper();
+                }
             }
 
             Button {
@@ -33,40 +65,109 @@ component IOKind inherits GroupBox {
             }
         }
 
-        extension := LineEdit {
+        source-file-extension := LineEdit {
             placeholder-text: "File extension";
+            property <bool> _: self.has-focus;
+            function set-focus-helper() {
+                if (self.has-focus == true) {
+                    Backend.set_focus_candidate(FocusCandidate.source-file-extension-field);
+                }
+            }
+            changed has-focus => {
+                set-focus-helper();
+            }
         }
     }
 }
 
-component Source inherits IOKind {
-    title: "Source";
-    property <bool> save-signal: Backend.save-signal;
-    changed save-signal => {
-        Backend.source-path = root.path;
-        Backend.source-file-extension = root.extension;
-    }
-}
-
-component Output inherits IOKind {
+component Output inherits GroupBox {
     title: "Output";
+    property <bool> clear-signal: Backend.clear-signal;
+    changed clear-signal => {
+        output-path.text = "";
+        output-file-extension.text = "";
+    }
     property <bool> save-signal: Backend.save-signal;
     changed save-signal => {
-        Backend.output-path = root.path;
-        Backend.output-file-extension = root.extension;
+        Backend.output-path = output-path.text;
+        Backend.output-file-extension = output-file-extension.text;
+    }
+    property <FocusCandidate> focus-candidate: Backend.focus-candidate;
+    function focus-helper() {
+        if (focus-candidate == FocusCandidate.output-path-field) {
+            output-path.focus();
+        } else if (focus-candidate == FocusCandidate.output-file-extension-field) {
+            output-file-extension.focus();
+        }
+    }
+    changed focus-candidate => {
+        focus-helper();
+    }
+    VerticalLayout {
+        HorizontalLayout {
+            output-path := LineEdit {
+                placeholder-text: "Relative path";
+                property <bool> _: self.has-focus;
+                function set-focus-helper() {
+                    if (self.has-focus == true) {
+                        Backend.set_focus_candidate(FocusCandidate.output-path-field);
+                    }
+                }
+                changed has-focus => {
+                    set-focus-helper();
+                }
+            }
+
+            Button {
+                text: "";
+            }
+        }
+
+        output-file-extension := LineEdit {
+            placeholder-text: "File extension";
+            property <bool> _: self.has-focus;
+            function set-focus-helper() {
+                if (self.has-focus == true) {
+                    Backend.set_focus_candidate(FocusCandidate.output-file-extension-field);
+                }
+            }
+            changed has-focus => {
+                set-focus-helper();
+            }
+        }
     }
 }
 
 component ConversionEngineSettings inherits GroupBox {
     title: "Conversion engine settings";
     TabWidget {
+        property <FocusCandidate> focus-candidate: Backend.focus-candidate;
+        function focus-helper() {
+            if (focus-candidate == FocusCandidate.options-text-area) {
+                self.current-index = 0;
+                options.focus();
+            } else if (focus-candidate == FocusCandidate.ignore-patterns-text-area) {
+                self.current-index = 1;
+                ignore-patterns.focus();
+            }
+        }
+        changed focus-candidate => {
+            focus-helper();
+        }
+        property <bool> save-signal: Backend.save-signal;
+        changed save-signal => {
+            Backend.options = options.text;
+            Backend.ignore-patterns = ignore-patterns.text;
+        }
+        property <bool> clear-signal: Backend.clear-signal;
+        changed clear-signal => {
+            options.text = "";
+            ignore-patterns.text = "";
+        }
+
         Tab {
             title: "Options";
             HorizontalLayout {
-                property <bool> save-signal: Backend.save-signal;
-                changed save-signal => {
-                    Backend.options = options.text;
-                }
                 options := TextEdit { } // TODO: change for a more adhoc widget
             }
         }
@@ -74,10 +175,6 @@ component ConversionEngineSettings inherits GroupBox {
         Tab {
             title: "Ignore patterns";
             HorizontalLayout {
-                property <bool> save-signal: Backend.save-signal;
-                changed save-signal => {
-                    Backend.ignore-patterns = ignore-patterns.text;
-                }
                 ignore-patterns := TextEdit { }
             }
         }
@@ -103,22 +200,35 @@ component Toolbar inherits GroupBox {
             width: 10px;
         }
 
-        Button {
+        property <FocusCandidate> focus-candidate: Backend.focus-candidate;
+        function focus-helper() {
+            if (focus-candidate == FocusCandidate.save-button) {
+                save.focus();
+            }
+        }
+        changed focus-candidate => {
+            focus-helper();
+        }
+        save := Button {
             horizontal-stretch: 0;
             text: "";
-            property <int> odd_hack: 0;
+            property <int> odd_hack;
             clicked => {
                 Backend.save-signal = !Backend.save-signal;
                 odd_hack += 1;
                 if (mod(odd_hack,2) == 0) {
                     Backend.save-profile();
                 }
+                Backend.set_focus_candidate(FocusCandidate.add-button);
             }
         }
 
         Button {
             horizontal-stretch: 0;
             text: "";
+            clicked => {
+                Backend.clear-signal = !Backend.clear-signal;
+            }
         }
     }
 }
