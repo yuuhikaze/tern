@@ -60,7 +60,6 @@ impl Database {
             .into_iter()
             .map(|row| row.try_get(kind).unwrap())
             .collect();
-        println!("From DB: {:#?}", column);
     }
 
     pub async fn get_profiles(&self, profile: Arc<Mutex<Vec<Profile>>>) {

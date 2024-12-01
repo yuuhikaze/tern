@@ -1,6 +1,6 @@
 slint::include_modules!();
 
-use std::rc::Rc;
+use std::{rc::Rc, thread, time::Duration};
 
 use slint::{Model, SharedString, VecModel};
 
@@ -52,8 +52,8 @@ impl GraphicalInterface {
             Arc::clone(&stored_engines_arc),
             "engine".to_string(),
         );
-        println!("From interface: {:#?}", stored_engines_arc);
-        let stored_engines = Arc::try_unwrap(stored_engines_arc).unwrap_or(std::sync::Mutex::new(vec!["It's quiet here...".to_string()])).into_inner().unwrap();
+        thread::sleep(Duration::from_millis(10)); // cheap hack to wait for arc mutex data-wise readiness
+        let stored_engines = Arc::try_unwrap(stored_engines_arc).unwrap().into_inner().unwrap();
         let available_engines: Vec<String> = controller::read_data_dir()
             .filter_map(|entry| entry.ok().and_then(|e| e.file_name().into_string().ok()))
             .filter(|result| !stored_engines.contains(result))
