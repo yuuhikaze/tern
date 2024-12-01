@@ -4,14 +4,14 @@ use std::rc::Rc;
 
 use slint::{Model, SharedString, VecModel};
 
-use crate::controller::{self, ArgParser, InterfaceEvent, Profile};
+use crate::utils::{self, ControlEvent, InterfaceArgs, Profile, WriteEvent};
 use std::sync::Arc;
-use tokio::sync::mpsc::Sender;
+use tokio::{sync::mpsc::Sender, task};
 
 pub struct InterfaceBuilder;
 
 impl InterfaceBuilder {
-    pub fn build(args: ArgParser, tx: Sender<InterfaceEvent>) -> Box<dyn Interface> {
+    pub fn build(tx: Sender<ControlEvent>, args: InterfaceArgs) -> Box<dyn Interface> {
         if args.tui {
             Box::new(CommandLineInterface)
         } else {
@@ -28,7 +28,7 @@ pub trait Interface {
 }
 
 struct GraphicalInterface {
-    tx: Option<Sender<InterfaceEvent>>,
+    tx: Option<Sender<ControlEvent>>,
     app: Option<AppWindow>,
 }
 
@@ -45,9 +45,9 @@ impl GraphicalInterface {
             .on_save_profile(move || {
                 macro_rules! construct_vector_from_getter {
                     ( $x:ident ) => {{
-                        let options = app.global::<Backend>().$x().to_string();
-                        if !options.is_empty() {
-                            Some(options.lines().map(|e| e.into()).collect())
+                        let column = app.global::<Backend>().$x().to_string();
+                        if !column.is_empty() {
+                            Some(column.lines().map(|e| e.into()).collect())
                         } else {
                             None
                         }
@@ -73,24 +73,35 @@ impl GraphicalInterface {
                 });
                 let tx = tx.clone();
                 let profile = Arc::clone(&profile_arc);
-                tokio::spawn(async move {
-                    if (tx.unwrap().send(InterfaceEvent::Save(Some(profile))).await).is_err() {
+                task::spawn(async move {
+                    if (tx
+                        .unwrap()
+                        .send(ControlEvent::WriteEvent(WriteEvent::SaveProfile(Some(
+                            profile,
+                        ))))
+                        .await)
+                        .is_err()
+                    {
                         println!("Receiver dropped");
                     }
                 });
             });
+        // show stored engines
         // show available engines
-        let engines: Vec<String> = controller::read_data_dir()
+        let available_engines: Vec<String> = utils::read_data_dir()
             .filter_map(|entry| entry.ok().and_then(|e| e.file_name().into_string().ok()))
             .collect();
         let engines_model: Rc<VecModel<SharedString>> = Rc::new(VecModel::from(
-            engines.into_iter().map(Into::into).collect::<Vec<_>>(),
+            available_engines
+                .into_iter()
+                .map(Into::into)
+                .collect::<Vec<_>>(),
         ));
         self.app
             .as_ref()
             .unwrap()
             .global::<Backend>()
-            .set_engines(engines_model.clone().into());
+            .set_available_engines(engines_model.clone().into());
         // set focus candidate
         let app = app_weak.unwrap();
         self.app
@@ -102,15 +113,19 @@ impl GraphicalInterface {
                 let matched_index = focus_candidate_list
                     .as_any()
                     .downcast_ref::<VecModel<FocusCandidate>>()
-                    .unwrap().iter().position(|e| e == focus_candidate).unwrap();
-                app.global::<Backend>().set_focus_candidate_index(matched_index as i32);
+                    .unwrap()
+                    .iter()
+                    .position(|e| e == focus_candidate)
+                    .unwrap();
+                app.global::<Backend>()
+                    .set_focus_candidate_index(matched_index as i32);
             });
     }
 
     fn clean(&mut self) {
         let tx = self.tx.clone();
-        tokio::spawn(async move {
-            if (tx.unwrap().send(InterfaceEvent::Quit).await).is_err() {
+        task::spawn(async move {
+            if (tx.unwrap().send(ControlEvent::Quit).await).is_err() {
                 println!("Receiver dropped");
             }
         });

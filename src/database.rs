@@ -1,37 +1,60 @@
 use std::{collections::BTreeMap, fs, path::Path, sync::Arc};
 
-use sqlx::{migrate::MigrateDatabase, Sqlite, SqlitePool};
+use sqlx::{migrate::MigrateDatabase, Row, Sqlite, SqlitePool};
+use tokio::sync::{oneshot::Sender, Mutex};
 
-use crate::controller::{DatabaseEvent, Profile};
+use crate::utils::{DatabaseArgs, DatabaseEvent, Profile};
 
 const DB_URL: &str = "sqlite://.tern/tern.db";
 
 pub struct Database {
+    tx: Option<Sender<DatabaseEvent>>,
+    args: Option<DatabaseArgs>,
     db: Option<sqlx::Pool<Sqlite>>,
 }
 
 impl Database {
-    pub fn new() -> Self {
-        Self { db: None }
-    }
-
-    pub async fn init(&mut self) -> DatabaseEvent {
-        if !Sqlite::database_exists(DB_URL).await.unwrap_or(false) {
-            fs::create_dir(".tern").unwrap();
-            match Sqlite::create_database(DB_URL).await {
-                Ok(_) => DatabaseEvent::Write,
-                Err(err) => panic!("Could not create database: {}", err),
-            }
-        } else {
-            DatabaseEvent::Read
+    pub fn new(tx: Sender<DatabaseEvent>, args: DatabaseArgs) -> Self {
+        Self {
+            db: None,
+            args: Some(args),
+            tx: Some(tx),
         }
     }
 
     pub async fn connect(&mut self) {
+        let tx = self.tx.take().unwrap();
+        fn send_write_event(tx: Sender<DatabaseEvent>) {
+            if tx.send(DatabaseEvent::WriteEvent).is_err() {
+                panic!(
+                    "Receiver dropped before message [{:?}] could be sent",
+                    DatabaseEvent::WriteEvent
+                );
+            }
+        }
+        fn send_read_event(tx: Sender<DatabaseEvent>) {
+            if tx.send(DatabaseEvent::ReadEvent).is_err() {
+                panic!(
+                    "Receiver dropped before message [{:?}] could be sent",
+                    DatabaseEvent::ReadEvent
+                );
+            }
+        }
+        if !Sqlite::database_exists(DB_URL).await.unwrap_or(false) {
+            fs::create_dir(".tern").unwrap();
+            match Sqlite::create_database(DB_URL).await {
+                Err(err) => panic!("Could not create database: {}", err),
+                Ok(_) => send_write_event(tx),
+            };
+        } else if !self.args.as_ref().unwrap().profile_manager {
+            send_read_event(tx);
+        } else {
+            send_write_event(tx);
+        }
         self.db = Some(SqlitePool::connect(DB_URL).await.unwrap());
     }
 
-    pub async fn setup(&self) {
+    pub async fn migrate(&self) {
         sqlx::migrate::Migrator::new(Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations"))
             .await
             .unwrap()
@@ -40,13 +63,23 @@ impl Database {
             .unwrap();
     }
 
-    pub async fn fetch_profiles(&self) -> Vec<Profile> {
+    pub async fn get_column(&self, column: Arc<Mutex<Vec<String>>>, kind: &str) {
+        *column.lock().await = sqlx::query("SELECT $1 FROM profiles")
+            .bind(kind)
+            .fetch_all(self.db.as_ref().unwrap())
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|row| row.try_get("engine").unwrap())
+            .collect()
+    }
+
+    pub async fn get_profiles(&self, profile: Arc<Mutex<Vec<Profile>>>) {
         let raw_profiles = sqlx::query("SELECT * FROM profiles")
             .fetch_all(self.db.as_ref().unwrap())
             .await
             .unwrap();
         let profiles_future = raw_profiles.into_iter().map(async |row| {
-            use sqlx::Row;
             let id: u32 = row.try_get("id").unwrap();
             let try_get_row_as_vector = |column| {
                 // &str: data received from database
@@ -83,7 +116,7 @@ impl Database {
                 metadata,
             }
         });
-        futures::future::join_all(profiles_future).await
+        *profile.lock().await = futures::future::join_all(profiles_future).await;
     }
 
     pub async fn save_profile(&self, mut profile: Option<Arc<Profile>>) {
