@@ -7,6 +7,7 @@ use std::{
 
 use clap::Parser;
 use directories::ProjectDirs;
+use tokio::sync::Mutex;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -17,13 +18,33 @@ pub struct ArgParser {
     pub profile_manager: bool,
 }
 
-pub enum DatabaseEvent {
-    Write,
-    Read,
+pub struct DatabaseArgs {
+    pub profile_manager: bool,
 }
-pub enum InterfaceEvent {
-    Save(Option<Arc<Profile>>),
+
+pub struct InterfaceArgs {
+    pub tui: bool,
+}
+
+#[derive(Debug)]
+pub enum DatabaseEvent {
+    ReadEvent,
+    WriteEvent,
+}
+
+pub enum ControlEvent {
+    ReadEvent(ReadEvent),
+    WriteEvent(WriteEvent),
     Quit,
+}
+
+pub enum ReadEvent {
+    GetColumn(Arc<Mutex<Vec<String>>>, String),
+    GetProfiles(Arc<Mutex<Vec<Profile>>>),
+}
+
+pub enum WriteEvent {
+    SaveProfile(Option<Arc<Profile>>),
 }
 
 #[derive(Debug)]

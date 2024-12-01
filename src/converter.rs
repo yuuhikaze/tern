@@ -1,11 +1,7 @@
-use crate::controller::Profile;
+pub struct Converter {}
 
-pub struct Converter<'a> {
-    profile: &'a Profile,
-}
-
-impl<'a> Converter<'a> {
-    pub fn new(profile: &'a Profile) -> Self {
-        Self { profile }
+impl Converter {
+    pub fn build() -> Self {
+        Self {}
     }
 }

@@ -3,7 +3,6 @@ import { Backend, FocusCandidate } from "../backend.slint";
 
 component ConversionEngine inherits GroupBox {
     title: "Conversion engine";
-    property <[string]> engines: Backend.engines;
     property <bool> save-signal: Backend.save-signal;
     changed save-signal => {
         Backend.engine = combo.current-value;
@@ -18,7 +17,7 @@ component ConversionEngine inherits GroupBox {
         focus-helper();
     }
     combo := ComboBox {
-        model: engines;
+        model: Backend.available-engines;
     }
 }
 
@@ -168,14 +167,34 @@ component ConversionEngineSettings inherits GroupBox {
         Tab {
             title: "Options";
             HorizontalLayout {
-                options := TextEdit { } // TODO: change for a more adhoc widget
+                options := TextEdit {
+                    property <bool> _: self.has-focus;
+                    function set-focus-helper() {
+                        if (self.has-focus == true) {
+                            Backend.set_focus_candidate(FocusCandidate.options-text-area);
+                        }
+                    }
+                    changed has-focus => {
+                        set-focus-helper();
+                    }
+                } // TODO: change for a more adhoc widget
             }
         }
 
         Tab {
             title: "Ignore patterns";
             HorizontalLayout {
-                ignore-patterns := TextEdit { }
+                ignore-patterns := TextEdit {
+                    property <bool> _: self.has-focus;
+                    function set-focus-helper() {
+                        if (self.has-focus == true) {
+                            Backend.set_focus_candidate(FocusCandidate.ignore-patterns-text-area);
+                        }
+                    }
+                    changed has-focus => {
+                        set-focus-helper();
+                    }
+                }
             }
         }
     }
@@ -219,7 +238,7 @@ component Toolbar inherits GroupBox {
                 if (mod(odd_hack,2) == 0) {
                     Backend.save-profile();
                 }
-                Backend.set_focus_candidate(FocusCandidate.add-button);
+                Backend.set_focus_candidate(FocusCandidate.save-button);
             }
         }
 
