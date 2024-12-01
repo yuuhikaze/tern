@@ -3,7 +3,7 @@
 mod converter;
 mod database;
 mod interface;
-mod utils;
+mod controller;
 
 use clap::Parser;
 use converter::Converter;
@@ -14,12 +14,12 @@ use tokio::{
     sync::{mpsc, oneshot, Mutex},
     task,
 };
-use utils::{ArgParser, ControlEvent, DatabaseArgs, InterfaceArgs, ReadEvent, WriteEvent};
+use controller::{ArgParser, ControlEvent, DatabaseArgs, InterfaceArgs, ReadEvent, WriteEvent};
 
 #[tokio::main]
 async fn main() {
     // data directory management
-    utils::create_data_dir();
+    controller::create_data_dir();
     // CLI options management
     let args = ArgParser::parse();
     // oneshot channel setup
@@ -38,10 +38,10 @@ async fn main() {
     let agent_handle = async {
         if let Ok(database_event) = oneshot_rx.await {
             match database_event {
-                utils::DatabaseEvent::ReadEvent => {
+                controller::DatabaseEvent::ReadEvent => {
                     Converter::build();
                 }
-                utils::DatabaseEvent::WriteEvent => {
+                controller::DatabaseEvent::WriteEvent => {
                     let interface_args = InterfaceArgs { tui: args.tui };
                     let mpsc_tx = mpsc_tx.clone();
                     task::spawn_blocking(|| {
@@ -67,9 +67,9 @@ async fn main() {
                     }
                 },
                 ControlEvent::WriteEvent(write_event) => match write_event {
-                    WriteEvent::SaveProfile(arc) => {
+                    WriteEvent::StoreProfile(arc) => {
                         println!("{:#?}", arc);
-                        db.lock().await.save_profile(arc).await;
+                        db.lock().await.store_profile(arc).await;
                     }
                 },
                 ControlEvent::Quit => break,
