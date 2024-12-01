@@ -17,3 +17,6 @@ CREATE TABLE profiles(
     options TEXT,
     ignore_patterns TEXT
 );
+
+CREATE INDEX idx_engine
+ON profiles (engine);

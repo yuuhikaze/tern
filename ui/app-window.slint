@@ -1,35 +1,235 @@
-import { ListView, Button, LineEdit, ComboBox, TabWidget, TextEdit, GroupBox } from "std-widgets.slint";
+import { ListView, Button, LineEdit, ComboBox, TabWidget, TextEdit, GroupBox, AboutSlint } from "std-widgets.slint";
 
-import { LeftPanel } from "components/left-panel.slint";
-import { RightPanel } from "components/right-panel.slint";
-import { Backend } from "backend.slint";
+import { Tile } from "components/tile.slint";
+import { Backend, FocusCandidate } from "backend.slint";
 
 export { Backend }
 
 export component AppWindow inherits Window {
     preferred-width: 900px;
     preferred-height: 600px;
-    property <bool> rpanel-interactable: Backend.rpanel-interactable;
-    forward-focus: lpanel;
+    property <bool> rpanel-interactable;
+    forward-focus: add;
+    property <FocusCandidate> focus-candidate: Backend.focus-candidate;
+    function cycle-focus-candidate() {
+        if (focus-candidate == FocusCandidate.add) {
+            add.focus();
+        } else if (focus-candidate == FocusCandidate.conversion-engine) {
+            conversion-engine.focus();
+        } else if (focus-candidate == FocusCandidate.source-path) {
+            source-path.focus();
+        } else if (focus-candidate == FocusCandidate.source-file-extension) {
+            source-file-extension.focus();
+        } else if (focus-candidate == FocusCandidate.output-path) {
+            output-path.focus();
+        } else if (focus-candidate == FocusCandidate.output-file-extension) {
+            output-file-extension.focus();
+        } else if (focus-candidate == FocusCandidate.options) {
+            tab-widget.current-index = 0;
+            options.focus();
+        } else if (focus-candidate == FocusCandidate.ignore-patterns) {
+            tab-widget.current-index = 1;
+            ignore-patterns.focus();
+        } else if (focus-candidate == FocusCandidate.store) {
+            store.focus();
+        }
+    }
+    changed focus-candidate => {
+        cycle-focus-candidate();
+    }
+    function set-focus-candidate(watch: bool, kind: FocusCandidate) {
+        if watch {
+            Backend.set-focus-candidate(kind);
+        }
+    }
+    function clear() {
+        source-path.text = "";
+        source-file-extension.text = "";
+        output-path.text = "";
+        output-file-extension.text = "";
+        options.text = "";
+        ignore-patterns.text = "";
+    }
+    function store() {
+        Backend.engine = conversion-engine.current-value;
+        Backend.source-path = source-path.text;
+        Backend.source-file-extension = source-file-extension.text;
+        Backend.output-path = output-path.text;
+        Backend.output-file-extension = output-file-extension.text;
+        Backend.options = options.text;
+        Backend.ignore-patterns = ignore-patterns.text;
+        Backend.store-profile();
+    }
 
     FocusScope {
         HorizontalLayout {
-            lpanel := LeftPanel {
+            VerticalLayout {
                 min-width: 250px;
+                GroupBox {
+                    title: "Profiles";
+                    ListView {
+                        for engine in Backend.stored-engines: Tile {
+                            engine: engine;
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    alignment: end;
+                    add := Button {
+                        text: "󰐙";
+                        clicked => {
+                            root.clear();
+                            root.rpanel-interactable = true;
+                            root.set-focus-candidate(self.has-focus, FocusCandidate.add);
+                        }
+                    }
+
+                    delete := Button {
+                        text: "";
+                    }
+                }
             }
 
-            RightPanel {
-                visible: rpanel-interactable;
+            VerticalLayout {
+                visible: root.rpanel-interactable;
                 horizontal-stretch: 1;
+                GroupBox {
+                    title: "Conversion engine";
+                    conversion-engine := ComboBox {
+                        model: Backend.available-engines;
+                        property <bool> _: self.has-focus;
+                        changed has-focus => {
+                            root.set-focus-candidate(self.has-focus, FocusCandidate.conversion-engine);
+                        }
+                    }
+                }
+
+                GroupBox {
+                    title: "Source";
+                    VerticalLayout {
+                        HorizontalLayout {
+                            source-path := LineEdit {
+                                placeholder-text: "Relative path";
+                                property <bool> _: self.has-focus;
+                                changed has-focus => {
+                                    root.set-focus-candidate(self.has-focus, FocusCandidate.source-path);
+                                }
+                            }
+
+                            source-path-folder := Button {
+                                text: "";
+                            }
+                        }
+
+                        source-file-extension := LineEdit {
+                            placeholder-text: "File extension";
+                            property <bool> _: self.has-focus;
+                            changed has-focus => {
+                                root.set-focus-candidate(self.has-focus, FocusCandidate.source-file-extension);
+                            }
+                        }
+                    }
+                }
+
+                GroupBox {
+                    title: "Output";
+                    VerticalLayout {
+                        HorizontalLayout {
+                            output-path := LineEdit {
+                                placeholder-text: "Relative path";
+                                property <bool> _: self.has-focus;
+                                changed has-focus => {
+                                    root.set-focus-candidate(self.has-focus, FocusCandidate.output-path);
+                                }
+                            }
+
+                            output-path-folder := Button {
+                                text: "";
+                            }
+                        }
+
+                        output-file-extension := LineEdit {
+                            placeholder-text: "File extension";
+                            property <bool> _: self.has-focus;
+                            changed has-focus => {
+                                root.set-focus-candidate(self.has-focus, FocusCandidate.output-file-extension);
+                            }
+                        }
+                    }
+                }
+
+                GroupBox {
+                    title: "Conversion engine settings";
+                    tab-widget := TabWidget {
+                        Tab {
+                            title: "Options";
+                            HorizontalLayout {
+                                options := TextEdit {
+                                    property <bool> _: self.has-focus;
+                                    changed has-focus => {
+                                        root.set-focus-candidate(self.has-focus, FocusCandidate.options);
+                                    }
+                                }
+                            }
+                        }
+
+                        Tab {
+                            title: "Ignore patterns";
+                            HorizontalLayout {
+                                ignore-patterns := TextEdit {
+                                    property <bool> _: self.has-focus;
+                                    changed has-focus => {
+                                        root.set-focus-candidate(self.has-focus, FocusCandidate.ignore-patterns);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    alignment: end;
+                    popup := PopupWindow {
+                        AboutSlint { }
+                    }
+
+                    info := Button {
+                        text: "";
+                        clicked => {
+                            popup.show();
+                        }
+                    }
+
+                    Rectangle {
+                        width: 10px;
+                    }
+
+                    store := Button {
+                        text: "";
+                        clicked => {
+                            root.store();
+                            Backend.set-stored-and-available-engines();
+                            root.set-focus-candidate(self.has-focus, FocusCandidate.source-path);
+                        }
+                    }
+
+                    clear := Button {
+                        text: "";
+                        clicked => {
+                            root.clear();
+                        }
+                    }
+                }
             }
         }
 
         key-pressed(event) => {
             if (event.modifiers.control && event.text == "j") {
-                Backend.update-focus-candidate(Backend.rpanel-interactable ? 1 : 0);
+                Backend.update-focus-candidate(root.rpanel-interactable ? 1 : 0);
                 accept
             } else if (event.modifiers.control && event.text == "k") {
-                Backend.update-focus-candidate(Backend.rpanel-interactable ? -1 : 0);
+                Backend.update-focus-candidate(root.rpanel-interactable ? -1 : 0);
                 accept
             } else {
                 reject
