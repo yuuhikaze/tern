@@ -1,27 +1,27 @@
 export enum FocusCandidate {
-    add-button,
-    conversion-engine-combo-box,
-    source-path-field,
-    source-file-extension-field,
-    output-path-field,
-    output-file-extension-field,
-    options-text-area,
-    ignore-patterns-text-area,
-    store-button
+    add,
+    conversion-engine,
+    source-path,
+    source-file-extension,
+    output-path,
+    output-file-extension,
+    options,
+    ignore-patterns,
+    store
 }
 
 export global Backend {
     in-out property <int> focus-candidate-index: -1;
     out property <[FocusCandidate]> focus-candidate-list: [
-        FocusCandidate.add-button,
-        FocusCandidate.conversion-engine-combo-box,
-        FocusCandidate.source-path-field,
-        FocusCandidate.source-file-extension-field,
-        FocusCandidate.output-path-field,
-        FocusCandidate.output-file-extension-field,
-        FocusCandidate.options-text-area,
-        FocusCandidate.ignore-patterns-text-area,
-        FocusCandidate.store-button
+        FocusCandidate.add,
+        FocusCandidate.conversion-engine,
+        FocusCandidate.source-path,
+        FocusCandidate.source-file-extension,
+        FocusCandidate.output-path,
+        FocusCandidate.output-file-extension,
+        FocusCandidate.options,
+        FocusCandidate.ignore-patterns,
+        FocusCandidate.store
     ];
 
     out property <FocusCandidate> focus-candidate;
@@ -35,10 +35,6 @@ export global Backend {
         focus-candidate = focus-candidate-list[focus-candidate-index];
     }
 
-    in property <bool> clear-signal;
-    in property <bool> store-signal;
-
-    in property <bool> rpanel-interactable;
     in property <[string]> available-engines: [];
     in property <[string]> stored-engines: [];
 
@@ -51,5 +47,6 @@ export global Backend {
     in property <string> ignore-patterns;
 
     pure callback store-profile();
-    pure callback set_focus_candidate(FocusCandidate);
+    pure callback set-focus-candidate(FocusCandidate);
+    pure callback set-stored-and-available-engines();
 }

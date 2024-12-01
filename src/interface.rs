@@ -45,42 +45,56 @@ impl Interface for GraphicalInterface {
 impl GraphicalInterface {
     fn manage_interface_related_callbacks(&self) {
         let app_weak = self.app.as_ref().unwrap().as_weak();
+        // get, set stored and available engines
         let app = app_weak.unwrap();
-        let stored_engines_arc = Default::default();
-        Controller::send_get_column_event(
-            self.tx.clone().unwrap(),
-            Arc::clone(&stored_engines_arc),
-            "engine".to_string(),
-        );
-        thread::sleep(Duration::from_millis(10)); // cheap hack to wait for arc mutex data-wise readiness
-        let stored_engines = Arc::try_unwrap(stored_engines_arc).unwrap().into_inner().unwrap();
-        let available_engines: Vec<String> = controller::read_data_dir()
-            .filter_map(|entry| entry.ok().and_then(|e| e.file_name().into_string().ok()))
-            .filter(|result| !stored_engines.contains(result))
-            .collect();
-        let available_engines_model: Rc<VecModel<SharedString>> = Rc::new(VecModel::from(
-            available_engines
-                .into_iter()
-                .map(Into::into)
-                .collect::<Vec<_>>(),
-        ));
+        let tx = self.tx.clone();
         self.app
             .as_ref()
             .unwrap()
             .global::<Backend>()
-            .set_available_engines(available_engines_model.into());
-        let stored_engines_model: Rc<VecModel<SharedString>> = Rc::new(VecModel::from(
-            stored_engines
-                .into_iter()
-                .map(Into::into)
-                .collect::<Vec<_>>(),
-        ));
+            .on_set_stored_and_available_engines(move || {
+                let stored_engines_arc = Default::default();
+                Controller::send_get_column_event(
+                    tx.clone().unwrap(),
+                    Arc::clone(&stored_engines_arc),
+                    "engine".to_string(),
+                );
+                thread::sleep(Duration::from_millis(100)); // cheap hack to wait for arc mutex data-wise readiness
+                let stored_engines = Arc::try_unwrap(stored_engines_arc)
+                    .unwrap_or(std::sync::Mutex::new(vec![
+                        "Something went wrong!".to_string(),
+                        "Restart tern".to_string()
+                    ]))
+                    .into_inner()
+                    .unwrap();
+                let available_engines: Vec<String> = controller::read_data_dir()
+                    .filter_map(|entry| entry.ok().and_then(|e| e.file_name().into_string().ok()))
+                    .filter(|result| !stored_engines.contains(result))
+                    .collect();
+                let available_engines_model: Rc<VecModel<SharedString>> = Rc::new(VecModel::from(
+                    available_engines
+                        .into_iter()
+                        .map(Into::into)
+                        .collect::<Vec<_>>(),
+                ));
+                app.global::<Backend>()
+                    .set_available_engines(available_engines_model.into());
+                let stored_engines_model: Rc<VecModel<SharedString>> = Rc::new(VecModel::from(
+                    stored_engines
+                        .into_iter()
+                        .map(Into::into)
+                        .collect::<Vec<_>>(),
+                ));
+                app.global::<Backend>()
+                    .set_stored_engines(stored_engines_model.into());
+            });
         self.app
             .as_ref()
             .unwrap()
             .global::<Backend>()
-            .set_stored_engines(stored_engines_model.into());
+            .invoke_set_stored_and_available_engines();
         // set focus candidate on click
+        let app = app_weak.unwrap();
         self.app
             .as_ref()
             .unwrap()
@@ -101,8 +115,8 @@ impl GraphicalInterface {
 
     fn manage_model_related_callbacks(&self) {
         let app_weak = self.app.as_ref().unwrap().as_weak();
-        let app = app_weak.unwrap();
         // store profile
+        let app = app_weak.unwrap();
         let tx = self.tx.clone();
         self.app
             .as_ref()
