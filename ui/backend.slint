@@ -7,7 +7,7 @@ export enum FocusCandidate {
     output-file-extension-field,
     options-text-area,
     ignore-patterns-text-area,
-    save-button
+    store-button
 }
 
 export global Backend {
@@ -21,7 +21,7 @@ export global Backend {
         FocusCandidate.output-file-extension-field,
         FocusCandidate.options-text-area,
         FocusCandidate.ignore-patterns-text-area,
-        FocusCandidate.save-button
+        FocusCandidate.store-button
     ];
 
     out property <FocusCandidate> focus-candidate;
@@ -36,7 +36,7 @@ export global Backend {
     }
 
     in property <bool> clear-signal;
-    in property <bool> save-signal;
+    in property <bool> store-signal;
 
     in property <bool> rpanel-interactable;
     in property <[string]> available-engines: [];
@@ -50,6 +50,6 @@ export global Backend {
     in property <string> options;
     in property <string> ignore-patterns;
 
-    pure callback save-profile();
+    pure callback store-profile();
     pure callback set_focus_candidate(FocusCandidate);
 }

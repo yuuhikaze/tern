@@ -3,8 +3,8 @@ import { Backend, FocusCandidate } from "../backend.slint";
 
 component ConversionEngine inherits GroupBox {
     title: "Conversion engine";
-    property <bool> save-signal: Backend.save-signal;
-    changed save-signal => {
+    property <bool> store-signal: Backend.store-signal;
+    changed store-signal => {
         Backend.engine = combo.current-value;
     }
     property <FocusCandidate> focus-candidate: Backend.focus-candidate;
@@ -28,8 +28,8 @@ component Source inherits GroupBox {
         source-path.text = "";
         source-file-extension.text = "";
     }
-    property <bool> save-signal: Backend.save-signal;
-    changed save-signal => {
+    property <bool> store-signal: Backend.store-signal;
+    changed store-signal => {
         Backend.source-path = source-path.text;
         Backend.source-file-extension = source-file-extension.text;
     }
@@ -86,8 +86,8 @@ component Output inherits GroupBox {
         output-path.text = "";
         output-file-extension.text = "";
     }
-    property <bool> save-signal: Backend.save-signal;
-    changed save-signal => {
+    property <bool> store-signal: Backend.store-signal;
+    changed store-signal => {
         Backend.output-path = output-path.text;
         Backend.output-file-extension = output-file-extension.text;
     }
@@ -153,8 +153,8 @@ component ConversionEngineSettings inherits GroupBox {
         changed focus-candidate => {
             focus-helper();
         }
-        property <bool> save-signal: Backend.save-signal;
-        changed save-signal => {
+        property <bool> store-signal: Backend.store-signal;
+        changed store-signal => {
             Backend.options = options.text;
             Backend.ignore-patterns = ignore-patterns.text;
         }
@@ -221,24 +221,24 @@ component Toolbar inherits GroupBox {
 
         property <FocusCandidate> focus-candidate: Backend.focus-candidate;
         function focus-helper() {
-            if (focus-candidate == FocusCandidate.save-button) {
-                save.focus();
+            if (focus-candidate == FocusCandidate.store-button) {
+                store.focus();
             }
         }
         changed focus-candidate => {
             focus-helper();
         }
-        save := Button {
+        store := Button {
             horizontal-stretch: 0;
             text: "";
             property <int> odd_hack;
             clicked => {
-                Backend.save-signal = !Backend.save-signal;
+                Backend.store-signal = !Backend.store-signal;
                 odd_hack += 1;
                 if (mod(odd_hack,2) == 0) {
-                    Backend.save-profile();
+                    Backend.store-profile();
                 }
-                Backend.set_focus_candidate(FocusCandidate.save-button);
+                Backend.set_focus_candidate(FocusCandidate.store-button);
             }
         }
 

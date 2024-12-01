@@ -4,9 +4,13 @@ use std::rc::Rc;
 
 use slint::{Model, SharedString, VecModel};
 
-use crate::utils::{self, ControlEvent, InterfaceArgs, Profile, WriteEvent};
+use crate::controller::{self, ControlEvent, Controller, InterfaceArgs, Profile};
 use std::sync::Arc;
-use tokio::{sync::mpsc::Sender, task};
+use tokio::sync::mpsc::Sender;
+
+pub trait Interface {
+    fn spawn_and_run(&mut self);
+}
 
 pub struct InterfaceBuilder;
 
@@ -23,26 +27,88 @@ impl InterfaceBuilder {
     }
 }
 
-pub trait Interface {
-    fn spawn_and_run(&mut self);
-}
-
 struct GraphicalInterface {
     tx: Option<Sender<ControlEvent>>,
     app: Option<AppWindow>,
 }
 
+impl Interface for GraphicalInterface {
+    fn spawn_and_run(&mut self) {
+        self.app = Some(AppWindow::new().unwrap());
+        self.manage_interface_related_callbacks();
+        self.manage_model_related_callbacks();
+        self.app.as_ref().unwrap().run().unwrap();
+        self.clean();
+    }
+}
+
 impl GraphicalInterface {
-    fn manage_backend_callbacks(&self) {
-        // save profile
+    fn manage_interface_related_callbacks(&self) {
         let app_weak = self.app.as_ref().unwrap().as_weak();
         let app = app_weak.unwrap();
+        let stored_engines_arc = Default::default();
+        Controller::send_get_column_event(
+            self.tx.clone().unwrap(),
+            Arc::clone(&stored_engines_arc),
+            "engine".to_string(),
+        );
+        println!("From interface: {:#?}", stored_engines_arc);
+        let stored_engines = Arc::try_unwrap(stored_engines_arc).unwrap_or(std::sync::Mutex::new(vec!["It's quiet here...".to_string()])).into_inner().unwrap();
+        let available_engines: Vec<String> = controller::read_data_dir()
+            .filter_map(|entry| entry.ok().and_then(|e| e.file_name().into_string().ok()))
+            .filter(|result| !stored_engines.contains(result))
+            .collect();
+        let available_engines_model: Rc<VecModel<SharedString>> = Rc::new(VecModel::from(
+            available_engines
+                .into_iter()
+                .map(Into::into)
+                .collect::<Vec<_>>(),
+        ));
+        self.app
+            .as_ref()
+            .unwrap()
+            .global::<Backend>()
+            .set_available_engines(available_engines_model.into());
+        let stored_engines_model: Rc<VecModel<SharedString>> = Rc::new(VecModel::from(
+            stored_engines
+                .into_iter()
+                .map(Into::into)
+                .collect::<Vec<_>>(),
+        ));
+        self.app
+            .as_ref()
+            .unwrap()
+            .global::<Backend>()
+            .set_stored_engines(stored_engines_model.into());
+        // set focus candidate on click
+        self.app
+            .as_ref()
+            .unwrap()
+            .global::<Backend>()
+            .on_set_focus_candidate(move |focus_candidate: FocusCandidate| {
+                let focus_candidate_list = app.global::<Backend>().get_focus_candidate_list();
+                let matched_index = focus_candidate_list
+                    .as_any()
+                    .downcast_ref::<VecModel<FocusCandidate>>()
+                    .unwrap()
+                    .iter()
+                    .position(|e| e == focus_candidate)
+                    .unwrap();
+                app.global::<Backend>()
+                    .set_focus_candidate_index(matched_index as i32);
+            });
+    }
+
+    fn manage_model_related_callbacks(&self) {
+        let app_weak = self.app.as_ref().unwrap().as_weak();
+        let app = app_weak.unwrap();
+        // store profile
         let tx = self.tx.clone();
         self.app
             .as_ref()
             .unwrap()
             .global::<Backend>()
-            .on_save_profile(move || {
+            .on_store_profile(move || {
                 macro_rules! construct_vector_from_getter {
                     ( $x:ident ) => {{
                         let column = app.global::<Backend>().$x().to_string();
@@ -71,74 +137,14 @@ impl GraphicalInterface {
                     ignore_patterns,
                     metadata: None,
                 });
-                let tx = tx.clone();
                 let profile = Arc::clone(&profile_arc);
-                task::spawn(async move {
-                    if (tx
-                        .unwrap()
-                        .send(ControlEvent::WriteEvent(WriteEvent::SaveProfile(Some(
-                            profile,
-                        ))))
-                        .await)
-                        .is_err()
-                    {
-                        println!("Receiver dropped");
-                    }
-                });
-            });
-        // show stored engines
-        // show available engines
-        let available_engines: Vec<String> = utils::read_data_dir()
-            .filter_map(|entry| entry.ok().and_then(|e| e.file_name().into_string().ok()))
-            .collect();
-        let engines_model: Rc<VecModel<SharedString>> = Rc::new(VecModel::from(
-            available_engines
-                .into_iter()
-                .map(Into::into)
-                .collect::<Vec<_>>(),
-        ));
-        self.app
-            .as_ref()
-            .unwrap()
-            .global::<Backend>()
-            .set_available_engines(engines_model.clone().into());
-        // set focus candidate
-        let app = app_weak.unwrap();
-        self.app
-            .as_ref()
-            .unwrap()
-            .global::<Backend>()
-            .on_set_focus_candidate(move |focus_candidate: FocusCandidate| {
-                let focus_candidate_list = app.global::<Backend>().get_focus_candidate_list();
-                let matched_index = focus_candidate_list
-                    .as_any()
-                    .downcast_ref::<VecModel<FocusCandidate>>()
-                    .unwrap()
-                    .iter()
-                    .position(|e| e == focus_candidate)
-                    .unwrap();
-                app.global::<Backend>()
-                    .set_focus_candidate_index(matched_index as i32);
+                Controller::send_store_profile_event(tx.clone().unwrap(), profile);
             });
     }
 
     fn clean(&mut self) {
-        let tx = self.tx.clone();
-        task::spawn(async move {
-            if (tx.unwrap().send(ControlEvent::Quit).await).is_err() {
-                println!("Receiver dropped");
-            }
-        });
+        Controller::send_quit_event(self.tx.clone().unwrap());
         drop(self.tx.take());
-    }
-}
-
-impl Interface for GraphicalInterface {
-    fn spawn_and_run(&mut self) {
-        self.app = Some(AppWindow::new().unwrap());
-        self.manage_backend_callbacks();
-        self.app.as_ref().unwrap().run().unwrap();
-        self.clean();
     }
 }
 

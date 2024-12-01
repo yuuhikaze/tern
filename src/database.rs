@@ -1,9 +1,14 @@
-use std::{collections::BTreeMap, fs, path::Path, sync::Arc};
+use std::{
+    collections::BTreeMap,
+    fs,
+    path::Path,
+    sync::{Arc, Mutex},
+};
 
 use sqlx::{migrate::MigrateDatabase, Row, Sqlite, SqlitePool};
-use tokio::sync::{oneshot::Sender, Mutex};
+use tokio::sync::oneshot::Sender;
 
-use crate::utils::{DatabaseArgs, DatabaseEvent, Profile};
+use crate::controller::{Controller, DatabaseArgs, DatabaseEvent, Profile};
 
 const DB_URL: &str = "sqlite://.tern/tern.db";
 
@@ -24,32 +29,16 @@ impl Database {
 
     pub async fn connect(&mut self) {
         let tx = self.tx.take().unwrap();
-        fn send_write_event(tx: Sender<DatabaseEvent>) {
-            if tx.send(DatabaseEvent::WriteEvent).is_err() {
-                panic!(
-                    "Receiver dropped before message [{:?}] could be sent",
-                    DatabaseEvent::WriteEvent
-                );
-            }
-        }
-        fn send_read_event(tx: Sender<DatabaseEvent>) {
-            if tx.send(DatabaseEvent::ReadEvent).is_err() {
-                panic!(
-                    "Receiver dropped before message [{:?}] could be sent",
-                    DatabaseEvent::ReadEvent
-                );
-            }
-        }
         if !Sqlite::database_exists(DB_URL).await.unwrap_or(false) {
             fs::create_dir(".tern").unwrap();
             match Sqlite::create_database(DB_URL).await {
                 Err(err) => panic!("Could not create database: {}", err),
-                Ok(_) => send_write_event(tx),
+                Ok(_) => Controller::send_write_event(tx),
             };
         } else if !self.args.as_ref().unwrap().profile_manager {
-            send_read_event(tx);
+            Controller::send_read_event(tx);
         } else {
-            send_write_event(tx);
+            Controller::send_write_event(tx);
         }
         self.db = Some(SqlitePool::connect(DB_URL).await.unwrap());
     }
@@ -64,14 +53,14 @@ impl Database {
     }
 
     pub async fn get_column(&self, column: Arc<Mutex<Vec<String>>>, kind: &str) {
-        *column.lock().await = sqlx::query("SELECT $1 FROM profiles")
-            .bind(kind)
+        *column.lock().unwrap() = sqlx::query(&format!("SELECT {} FROM profiles", kind))
             .fetch_all(self.db.as_ref().unwrap())
             .await
             .unwrap()
             .into_iter()
-            .map(|row| row.try_get("engine").unwrap())
-            .collect()
+            .map(|row| row.try_get(kind).unwrap())
+            .collect();
+        println!("From DB: {:#?}", column);
     }
 
     pub async fn get_profiles(&self, profile: Arc<Mutex<Vec<Profile>>>) {
@@ -116,17 +105,20 @@ impl Database {
                 metadata,
             }
         });
-        *profile.lock().await = futures::future::join_all(profiles_future).await;
+        *profile.lock().unwrap() = futures::future::join_all(profiles_future).await;
     }
 
-    pub async fn save_profile(&self, mut profile: Option<Arc<Profile>>) {
+    pub async fn store_profile(&self, mut profile: Option<Arc<Profile>>) {
         let profile_arc = profile.take().unwrap();
         if let Ok(profile) = Arc::try_unwrap(profile_arc) {
+            let flatten_vector = |v: Option<Vec<String>>| v.map(|option| option.join("\n"));
+            let options = flatten_vector(profile.options);
+            let ignore_patterns = flatten_vector(profile.ignore_patterns);
             sqlx::query(
                 r#"
-INSERT INTO profiles(engine, source_path, source_file_extension, output_path, output_file_extension)
+INSERT INTO profiles(engine, source_path, source_file_extension, output_path, output_file_extension, options, ignore_patterns)
 VALUES
-    ($1, $2, $3, $4, $5)
+    ($1, $2, $3, $4, $5, $6, $7)
 "#,
             )
             .bind(profile.engine)
@@ -134,6 +126,8 @@ VALUES
             .bind(profile.source_file_extension)
             .bind(profile.output_path)
             .bind(profile.output_file_extension)
+            .bind(options)
+            .bind(ignore_patterns)
             .execute(self.db.as_ref().unwrap())
             .await
             .unwrap();
