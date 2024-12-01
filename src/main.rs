@@ -68,7 +68,6 @@ async fn main() {
                 },
                 ControlEvent::WriteEvent(write_event) => match write_event {
                     WriteEvent::StoreProfile(arc) => {
-                        println!("{:#?}", arc);
                         db.lock().await.store_profile(arc).await;
                     }
                 },
