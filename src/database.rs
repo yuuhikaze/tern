@@ -8,18 +8,18 @@ use std::{
 use sqlx::{migrate::MigrateDatabase, Row, Sqlite, SqlitePool};
 use tokio::sync::oneshot::Sender;
 
-use crate::controller::{Controller, DatabaseArgs, DatabaseEvent, Profile};
+use crate::controller::{Controller, DatabaseArgs, ModelEvent, ModelMessageBroker, Profile};
 
 const DB_URL: &str = "sqlite://.tern/tern.db";
 
 pub struct Database {
-    tx: Option<Sender<DatabaseEvent>>,
+    tx: Option<Sender<ModelEvent>>,
     args: Option<DatabaseArgs>,
     db: Option<sqlx::Pool<Sqlite>>,
 }
 
 impl Database {
-    pub fn new(tx: Sender<DatabaseEvent>, args: DatabaseArgs) -> Self {
+    pub fn new(tx: Sender<ModelEvent>, args: DatabaseArgs) -> Self {
         Self {
             db: None,
             args: Some(args),

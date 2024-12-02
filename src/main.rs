@@ -1,12 +1,15 @@
 #![feature(async_closure)]
 
+mod controller;
 mod converter;
 mod database;
 mod interface;
-mod controller;
 
 use clap::Parser;
-use converter::Converter;
+use controller::{
+    AgentEvent, ArgParser, ConverterArgs, DatabaseArgs, InterfaceArgs, ReadEvent, WriteEvent,
+};
+use converter::ConverterFactory;
 use database::Database;
 use interface::InterfaceBuilder;
 use std::sync::Arc;
@@ -14,7 +17,6 @@ use tokio::{
     sync::{mpsc, oneshot, Mutex},
     task,
 };
-use controller::{ArgParser, ControlEvent, DatabaseArgs, InterfaceArgs, ReadEvent, WriteEvent};
 
 #[tokio::main]
 async fn main() {
@@ -38,10 +40,17 @@ async fn main() {
     let agent_handle = async {
         if let Ok(database_event) = oneshot_rx.await {
             match database_event {
-                controller::DatabaseEvent::ReadEvent => {
-                    Converter::build();
+                controller::ModelEvent::ReadEvent => {
+                    let converter_args = ConverterArgs {
+                        hidden: args.ignore_hidden_files,
+                    };
+                    task::spawn_blocking(|| {
+                        ConverterFactory::build(mpsc_tx, converter_args).run();
+                    })
+                    .await
+                    .unwrap();
                 }
-                controller::DatabaseEvent::WriteEvent => {
+                controller::ModelEvent::WriteEvent => {
                     let interface_args = InterfaceArgs { tui: args.tui };
                     let mpsc_tx = mpsc_tx.clone();
                     task::spawn_blocking(|| {
@@ -58,7 +67,7 @@ async fn main() {
     let controller_handle = async {
         while let Some(control_event) = mpsc_rx.recv().await {
             match control_event {
-                ControlEvent::ReadEvent(read_event) => match read_event {
+                AgentEvent::ReadEvent(read_event) => match read_event {
                     ReadEvent::GetColumn(arc, col) => {
                         db.lock().await.get_column(arc, &col).await;
                     }
@@ -66,12 +75,12 @@ async fn main() {
                         db.lock().await.get_profiles(arc).await;
                     }
                 },
-                ControlEvent::WriteEvent(write_event) => match write_event {
+                AgentEvent::WriteEvent(write_event) => match write_event {
                     WriteEvent::StoreProfile(arc) => {
                         db.lock().await.store_profile(arc).await;
                     }
                 },
-                ControlEvent::Quit => break,
+                AgentEvent::Quit => break,
             };
         }
     };
