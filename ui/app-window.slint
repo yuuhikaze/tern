@@ -1,6 +1,6 @@
 import { ListView, Button, LineEdit, ComboBox, TabWidget, TextEdit, GroupBox, AboutSlint } from "std-widgets.slint";
 
-import { Tile } from "components/tile.slint";
+import { ListItem } from "components/list-item.slint";
 import { Backend, FocusCandidate } from "backend.slint";
 
 export { Backend }
@@ -68,7 +68,7 @@ export component AppWindow inherits Window {
                 GroupBox {
                     title: "Profiles";
                     ListView {
-                        for engine in Backend.stored-engines: Tile {
+                        for engine in Backend.stored-engines: ListItem {
                             engine: engine;
                         }
                     }
