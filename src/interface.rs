@@ -4,7 +4,7 @@ use std::{rc::Rc, thread, time::Duration};
 
 use slint::{Model, SharedString, VecModel};
 
-use crate::controller::{self, ControlEvent, Controller, InterfaceArgs, Profile};
+use crate::controller::{self, AgentEvent, AgentMessageBroker, Controller, InterfaceArgs, Profile};
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
 
@@ -15,7 +15,7 @@ pub trait Interface {
 pub struct InterfaceBuilder;
 
 impl InterfaceBuilder {
-    pub fn build(tx: Sender<ControlEvent>, args: InterfaceArgs) -> Box<dyn Interface> {
+    pub fn build(tx: Sender<AgentEvent>, args: InterfaceArgs) -> Box<dyn Interface> {
         if args.tui {
             Box::new(CommandLineInterface)
         } else {
@@ -28,7 +28,7 @@ impl InterfaceBuilder {
 }
 
 struct GraphicalInterface {
-    tx: Option<Sender<ControlEvent>>,
+    tx: Option<Sender<AgentEvent>>,
     app: Option<AppWindow>,
 }
 
@@ -63,7 +63,7 @@ impl GraphicalInterface {
                 let stored_engines = Arc::try_unwrap(stored_engines_arc)
                     .unwrap_or(std::sync::Mutex::new(vec![
                         "Something went wrong!".to_string(),
-                        "Restart tern".to_string()
+                        "Restart tern".to_string(),
                     ]))
                     .into_inner()
                     .unwrap();
