@@ -1,13 +1,12 @@
+use clap::Parser;
+use directories::ProjectDirs;
 use std::{
     collections::BTreeMap,
     fs::{self, ReadDir},
     path::PathBuf,
-    sync::{Arc, LazyLock, Mutex},
+    sync::{Arc, Condvar, LazyLock, Mutex},
 };
-
-use clap::Parser;
-use directories::ProjectDirs;
-use tokio::task;
+use tokio::runtime::Handle;
 
 pub enum ModelEvent {
     ReadEvent,
@@ -21,8 +20,8 @@ pub enum AgentEvent {
 }
 
 pub enum ReadEvent {
-    GetColumn(Arc<Mutex<Vec<String>>>, String),
-    GetProfiles(Arc<Mutex<Vec<Profile>>>),
+    GetColumn(Arc<(Mutex<Vec<String>>, Condvar)>, String),
+    GetProfiles(Arc<(Mutex<Vec<Profile>>, Condvar)>),
 }
 
 pub enum WriteEvent {
@@ -30,34 +29,37 @@ pub enum WriteEvent {
 }
 
 pub trait ModelMessageBroker {
-    fn send_write_event(tx: tokio::sync::oneshot::Sender<ModelEvent>);
-    fn send_read_event(tx: tokio::sync::oneshot::Sender<ModelEvent>);
+    async fn send_write_event(tx: tokio::sync::oneshot::Sender<ModelEvent>);
+    async fn send_read_event(tx: tokio::sync::oneshot::Sender<ModelEvent>);
 }
 
 pub trait AgentMessageBroker {
-    fn send_get_column_event(
+    async fn send_get_column_event(
         tx: tokio::sync::mpsc::Sender<AgentEvent>,
-        column: Arc<Mutex<Vec<String>>>,
+        column: Arc<(Mutex<Vec<String>>, Condvar)>,
         kind: String,
     );
-    fn send_get_profiles_event(
+    async fn send_get_profiles_event(
         tx: tokio::sync::mpsc::Sender<AgentEvent>,
-        profile: Arc<Mutex<Vec<Profile>>>,
+        profile: Arc<(Mutex<Vec<Profile>>, Condvar)>,
     );
-    fn send_store_profile_event(tx: tokio::sync::mpsc::Sender<AgentEvent>, profile: Arc<Profile>);
-    fn send_quit_event(tx: tokio::sync::mpsc::Sender<AgentEvent>);
+    async fn send_store_profile_event(
+        tx: tokio::sync::mpsc::Sender<AgentEvent>,
+        profile: Arc<Profile>,
+    );
+    async fn send_quit_event(tx: tokio::sync::mpsc::Sender<AgentEvent>);
 }
 
 pub struct Controller;
 
 impl ModelMessageBroker for Controller {
-    fn send_write_event(tx: tokio::sync::oneshot::Sender<ModelEvent>) {
+    async fn send_write_event(tx: tokio::sync::oneshot::Sender<ModelEvent>) {
         if tx.send(ModelEvent::WriteEvent).is_err() {
             panic!("Receiver dropped before message [DatabaseEvent::WriteEvent] could be sent",);
         }
     }
 
-    fn send_read_event(tx: tokio::sync::oneshot::Sender<ModelEvent>) {
+    async fn send_read_event(tx: tokio::sync::oneshot::Sender<ModelEvent>) {
         if tx.send(ModelEvent::ReadEvent).is_err() {
             panic!("Receiver dropped before message [DatabaseEvent::ReadEvent] could be sent",);
         }
@@ -65,62 +67,57 @@ impl ModelMessageBroker for Controller {
 }
 
 impl AgentMessageBroker for Controller {
-    fn send_get_column_event(
+    async fn send_get_column_event(
         tx: tokio::sync::mpsc::Sender<AgentEvent>,
-        column: Arc<Mutex<Vec<String>>>,
+        column: Arc<(Mutex<Vec<String>>, Condvar)>,
         kind: String,
     ) {
-        task::spawn(async move {
-            if (tx
-                .send(AgentEvent::ReadEvent(ReadEvent::GetColumn(
-                    Arc::clone(&column),
-                    kind,
-                )))
-                .await)
-                .is_err()
-            {
-                panic!("Receiver dropped before message [AgentEvent::ReadEvent(ReadEvent::GetColumn(arc))] could be sent");
-            }
-        });
+        if (tx
+            .send(AgentEvent::ReadEvent(ReadEvent::GetColumn(
+                Arc::clone(&column),
+                kind,
+            )))
+            .await)
+            .is_err()
+        {
+            panic!("Receiver dropped before message [AgentEvent::ReadEvent(ReadEvent::GetColumn(arc))] could be sent");
+        }
     }
 
-    fn send_get_profiles_event(
+    async fn send_get_profiles_event(
         tx: tokio::sync::mpsc::Sender<AgentEvent>,
-        profile: Arc<Mutex<Vec<Profile>>>,
+        profile: Arc<(Mutex<Vec<Profile>>, Condvar)>,
     ) {
-        task::spawn(async move {
-            if (tx
-                .send(AgentEvent::ReadEvent(ReadEvent::GetProfiles(Arc::clone(
-                    &profile,
-                ))))
-                .await)
-                .is_err()
-            {
-                panic!("Receiver dropped before message [AgentEvent::ReadEvent(ReadEvent::GetProfiles(arc))] could be sent");
-            }
-        });
+        if (tx
+            .send(AgentEvent::ReadEvent(ReadEvent::GetProfiles(Arc::clone(
+                &profile,
+            ))))
+            .await)
+            .is_err()
+        {
+            panic!("Receiver dropped before message [AgentEvent::ReadEvent(ReadEvent::GetProfiles(arc))] could be sent");
+        }
     }
 
-    fn send_store_profile_event(tx: tokio::sync::mpsc::Sender<AgentEvent>, profile: Arc<Profile>) {
-        task::spawn(async move {
-            if (tx
-                .send(AgentEvent::WriteEvent(WriteEvent::StoreProfile(Some(
-                    profile,
-                ))))
-                .await)
-                .is_err()
-            {
-                panic!("Receiver dropped before message [AgentEvent::WriteEvent(WriteEvent::SaveProfile(arc))] could be sent");
-            }
-        });
+    async fn send_store_profile_event(
+        tx: tokio::sync::mpsc::Sender<AgentEvent>,
+        profile: Arc<Profile>,
+    ) {
+        if (tx
+            .send(AgentEvent::WriteEvent(WriteEvent::StoreProfile(Some(
+                profile,
+            ))))
+            .await)
+            .is_err()
+        {
+            panic!("Receiver dropped before message [AgentEvent::WriteEvent(WriteEvent::SaveProfile(arc))] could be sent");
+        }
     }
 
-    fn send_quit_event(tx: tokio::sync::mpsc::Sender<AgentEvent>) {
-        task::spawn(async move {
-            if (tx.send(AgentEvent::Quit).await).is_err() {
-                println!("Receiver dropped before message [AgentEvent::Quit] could be sent");
-            }
-        });
+    async fn send_quit_event(tx: tokio::sync::mpsc::Sender<AgentEvent>) {
+        if (tx.send(AgentEvent::Quit).await).is_err() {
+            println!("Receiver dropped before message [AgentEvent::Quit] could be sent");
+        }
     }
 }
 
@@ -134,27 +131,6 @@ pub struct Profile {
     pub options: Option<Vec<String>>,
     pub ignore_patterns: Option<Vec<String>>,
     pub metadata: Option<BTreeMap<String, i32>>,
-}
-
-static CONVERTERS_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
-    ProjectDirs::from("com", "yuuhikaze", "tern")
-        .expect("Unable to determine project directories")
-        .data_dir()
-        .join("converters")
-});
-
-pub fn get_converters_dir() -> PathBuf {
-    CONVERTERS_DIR.clone()
-}
-
-// Creates data dir if it does not exist
-pub fn create_data_dir() {
-    fs::create_dir_all(&*CONVERTERS_DIR).unwrap();
-}
-
-// Returns an iterator over the data directory
-pub fn read_data_dir() -> ReadDir {
-    fs::read_dir(&*CONVERTERS_DIR).unwrap()
 }
 
 #[derive(Parser)]
@@ -178,4 +154,31 @@ pub struct InterfaceArgs {
 
 pub struct ConverterArgs {
     pub hidden: bool,
+}
+
+static ASYNC_RUNTIME_HANDLE: LazyLock<Handle> = LazyLock::new(|| Handle::current());
+
+pub fn get_runtime_handle() -> Handle {
+    ASYNC_RUNTIME_HANDLE.clone()
+}
+
+static CONVERTERS_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
+    ProjectDirs::from("com", "yuuhikaze", "tern")
+        .expect("Unable to determine project directories")
+        .data_dir()
+        .join("converters")
+});
+
+pub fn get_converters_dir() -> PathBuf {
+    CONVERTERS_DIR.clone()
+}
+
+// Creates data dir if it does not exist
+pub fn create_data_dir() {
+    fs::create_dir_all(&*CONVERTERS_DIR).unwrap();
+}
+
+// Returns an iterator over the data directory
+pub fn read_data_dir() -> ReadDir {
+    fs::read_dir(&*CONVERTERS_DIR).unwrap()
 }

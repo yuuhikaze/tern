@@ -1,6 +1,6 @@
 slint::include_modules!();
 
-use std::{rc::Rc, thread, time::Duration};
+use std::rc::Rc;
 
 use slint::{Model, SharedString, VecModel};
 
@@ -54,17 +54,22 @@ impl GraphicalInterface {
             .global::<Backend>()
             .on_set_stored_and_available_engines(move || {
                 let stored_engines_arc = Default::default();
-                Controller::send_get_column_event(
-                    tx.clone().unwrap(),
-                    Arc::clone(&stored_engines_arc),
-                    "engine".to_string(),
-                );
-                thread::sleep(Duration::from_millis(100)); // cheap hack to wait for arc mutex data-wise readiness
+                let _runtime_guard = controller::get_runtime_handle().enter();
+                let message_handle = async {
+                    Controller::send_get_column_event(
+                        tx.clone().unwrap(),
+                        Arc::clone(&stored_engines_arc),
+                        "engine".to_string(),
+                    )
+                    .await;
+                };
+                futures::executor::block_on(message_handle);
+                let (lock, cvar) = &*stored_engines_arc;
+                let stored_engines = lock.lock().unwrap();
+                drop(cvar.wait(stored_engines).unwrap());
                 let stored_engines = Arc::try_unwrap(stored_engines_arc)
-                    .unwrap_or(std::sync::Mutex::new(vec![
-                        "Something went wrong!".to_string(),
-                        "Restart tern".to_string(),
-                    ]))
+                    .unwrap()
+                    .0
                     .into_inner()
                     .unwrap();
                 let available_engines: Vec<String> = controller::read_data_dir()
@@ -152,12 +157,20 @@ impl GraphicalInterface {
                     metadata: None,
                 });
                 let profile = Arc::clone(&profile_arc);
-                Controller::send_store_profile_event(tx.clone().unwrap(), profile);
+                let _runtime_guard = controller::get_runtime_handle().enter();
+                let message_handle = async {
+                    Controller::send_store_profile_event(tx.clone().unwrap(), profile).await;
+                };
+                futures::executor::block_on(message_handle);
             });
     }
 
     fn clean(&mut self) {
-        Controller::send_quit_event(self.tx.clone().unwrap());
+        let _runtime_guard = controller::get_runtime_handle().enter();
+        let message_handle = async {
+            Controller::send_quit_event(self.tx.clone().unwrap()).await;
+        };
+        futures::executor::block_on(message_handle);
         drop(self.tx.take());
     }
 }
