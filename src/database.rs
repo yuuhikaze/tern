@@ -2,7 +2,7 @@ use std::{
     collections::BTreeMap,
     fs,
     path::Path,
-    sync::{Arc, Mutex},
+    sync::{Arc, Condvar, Mutex},
 };
 
 use sqlx::{migrate::MigrateDatabase, Row, Sqlite, SqlitePool};
@@ -33,12 +33,12 @@ impl Database {
             fs::create_dir(".tern").unwrap();
             match Sqlite::create_database(DB_URL).await {
                 Err(err) => panic!("Could not create database: {}", err),
-                Ok(_) => Controller::send_write_event(tx),
+                Ok(_) => Controller::send_write_event(tx).await,
             };
         } else if !self.args.as_ref().unwrap().profile_manager {
-            Controller::send_read_event(tx);
+            Controller::send_read_event(tx).await;
         } else {
-            Controller::send_write_event(tx);
+            Controller::send_write_event(tx).await;
         }
         self.db = Some(SqlitePool::connect(DB_URL).await.unwrap());
     }
@@ -52,17 +52,18 @@ impl Database {
             .unwrap();
     }
 
-    pub async fn get_column(&self, column: Arc<Mutex<Vec<String>>>, kind: &str) {
-        *column.lock().unwrap() = sqlx::query(&format!("SELECT {} FROM profiles", kind))
+    pub async fn get_column(&self, column: Arc<(Mutex<Vec<String>>, Condvar)>, kind: &str) {
+        *column.0.lock().unwrap() = sqlx::query(&format!("SELECT {} FROM profiles", kind))
             .fetch_all(self.db.as_ref().unwrap())
             .await
             .unwrap()
             .into_iter()
             .map(|row| row.try_get(kind).unwrap())
             .collect();
+        column.1.notify_one();
     }
 
-    pub async fn get_profiles(&self, profile: Arc<Mutex<Vec<Profile>>>) {
+    pub async fn get_profiles(&self, profile: Arc<(Mutex<Vec<Profile>>, Condvar)>) {
         let raw_profiles = sqlx::query("SELECT * FROM profiles")
             .fetch_all(self.db.as_ref().unwrap())
             .await
@@ -104,7 +105,8 @@ impl Database {
                 metadata,
             }
         });
-        *profile.lock().unwrap() = futures::future::join_all(profiles_future).await;
+        *profile.0.lock().unwrap() = futures::future::join_all(profiles_future).await;
+        profile.1.notify_one();
     }
 
     pub async fn store_profile(&self, mut profile: Option<Arc<Profile>>) {

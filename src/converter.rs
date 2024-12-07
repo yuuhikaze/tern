@@ -1,4 +1,4 @@
-use std::{sync::Arc, thread, time::Duration};
+use std::sync::Arc;
 
 use ignore::{types::TypesBuilder, WalkBuilder, WalkState};
 use mlua::{Function, Lua};
@@ -19,10 +19,17 @@ impl ConverterFactory {
     pub fn run(&self) {
         let profiles_arc = Default::default();
         let tx = self.tx.clone().unwrap();
-        Controller::send_get_profiles_event(tx, Arc::clone(&profiles_arc));
-        thread::sleep(Duration::from_millis(100)); // cheap hack to wait for arc mutex data-wise readiness
+        let _runtime_guard = controller::get_runtime_handle().enter();
+        let message_handle = async {
+            Controller::send_get_profiles_event(tx, Arc::clone(&profiles_arc)).await;
+        };
+        futures::executor::block_on(message_handle);
+        let (lock, cvar) = &*profiles_arc;
+        let profiles = lock.lock().unwrap();
+        drop(cvar.wait(profiles).unwrap());
         Arc::try_unwrap(profiles_arc)
             .unwrap()
+            .0
             .into_inner()
             .unwrap()
             .iter()
@@ -65,7 +72,8 @@ impl ConverterFactory {
                                 .load(controller::get_converters_dir().join(&profile.engine))
                                 .eval()
                                 .unwrap();
-                            let source_file = String::from(source_path.unwrap().path().to_str().unwrap());
+                            let source_file =
+                                String::from(source_path.unwrap().path().to_str().unwrap());
                             let output_file = format!(
                                 "{}{}",
                                 &source_file
@@ -87,6 +95,10 @@ impl ConverterFactory {
                 });
             });
         let tx = self.tx.clone().unwrap();
-        Controller::send_quit_event(tx);
+        let _runtime_guard = controller::get_runtime_handle().enter();
+        let message_handle = async {
+            Controller::send_quit_event(tx).await;
+        };
+        futures::executor::block_on(message_handle);
     }
 }
