@@ -72,18 +72,6 @@ impl GraphicalInterface {
                     .0
                     .into_inner()
                     .unwrap();
-                let available_engines: Vec<String> = controller::read_data_dir()
-                    .filter_map(|entry| entry.ok().and_then(|e| e.file_name().into_string().ok()))
-                    .filter(|result| !stored_engines.contains(result))
-                    .collect();
-                let available_engines_model: Rc<VecModel<SharedString>> = Rc::new(VecModel::from(
-                    available_engines
-                        .into_iter()
-                        .map(Into::into)
-                        .collect::<Vec<_>>(),
-                ));
-                app.global::<Backend>()
-                    .set_available_engines(available_engines_model.into());
                 let stored_engines_model: Rc<VecModel<SharedString>> = Rc::new(VecModel::from(
                     stored_engines
                         .into_iter()
@@ -98,6 +86,19 @@ impl GraphicalInterface {
             .unwrap()
             .global::<Backend>()
             .invoke_set_stored_and_available_engines();
+        // set available engines
+        let app = app_weak.unwrap();
+        let available_engines: Vec<String> = controller::read_data_dir()
+            .filter_map(|entry| entry.ok().and_then(|e| e.file_name().into_string().ok()))
+            .collect();
+        let available_engines_model: Rc<VecModel<SharedString>> = Rc::new(VecModel::from(
+            available_engines
+                .into_iter()
+                .map(Into::into)
+                .collect::<Vec<_>>(),
+        ));
+        app.global::<Backend>()
+            .set_available_engines(available_engines_model.into());
         // set focus candidate on click
         let app = app_weak.unwrap();
         self.app
@@ -142,12 +143,12 @@ impl GraphicalInterface {
                 let ignore_patterns = construct_vector_from_getter!(get_ignore_patterns);
                 let profile_arc = Arc::new(Profile {
                     engine: app.global::<Backend>().get_engine().to_string(),
-                    source_path: app.global::<Backend>().get_source_path().to_string(),
+                    source_root: app.global::<Backend>().get_source_root().to_string(),
                     source_file_extension: app
                         .global::<Backend>()
                         .get_source_file_extension()
                         .to_string(),
-                    output_path: app.global::<Backend>().get_output_path().to_string(),
+                    output_root: app.global::<Backend>().get_output_root().to_string(),
                     output_file_extension: app
                         .global::<Backend>()
                         .get_output_file_extension()

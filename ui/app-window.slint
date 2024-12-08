@@ -16,12 +16,12 @@ export component AppWindow inherits Window {
             add.focus();
         } else if (focus-candidate == FocusCandidate.conversion-engine) {
             conversion-engine.focus();
-        } else if (focus-candidate == FocusCandidate.source-path) {
-            source-path.focus();
+        } else if (focus-candidate == FocusCandidate.source-root) {
+            source-root.focus();
         } else if (focus-candidate == FocusCandidate.source-file-extension) {
             source-file-extension.focus();
-        } else if (focus-candidate == FocusCandidate.output-path) {
-            output-path.focus();
+        } else if (focus-candidate == FocusCandidate.output-root) {
+            output-root.focus();
         } else if (focus-candidate == FocusCandidate.output-file-extension) {
             output-file-extension.focus();
         } else if (focus-candidate == FocusCandidate.options) {
@@ -43,18 +43,18 @@ export component AppWindow inherits Window {
         }
     }
     function clear() {
-        source-path.text = "";
+        source-root.text = "";
         source-file-extension.text = "";
-        output-path.text = "";
+        output-root.text = "";
         output-file-extension.text = "";
         options.text = "";
         ignore-patterns.text = "";
     }
     function store() {
         Backend.engine = conversion-engine.current-value;
-        Backend.source-path = source-path.text;
+        Backend.source-root = source-root.text;
         Backend.source-file-extension = source-file-extension.text;
-        Backend.output-path = output-path.text;
+        Backend.output-root = output-root.text;
         Backend.output-file-extension = output-file-extension.text;
         Backend.options = options.text;
         Backend.ignore-patterns = ignore-patterns.text;
@@ -109,15 +109,15 @@ export component AppWindow inherits Window {
                     title: "Source";
                     VerticalLayout {
                         HorizontalLayout {
-                            source-path := LineEdit {
+                            source-root := LineEdit {
                                 placeholder-text: "Relative path";
                                 property <bool> _: self.has-focus;
                                 changed has-focus => {
-                                    root.set-focus-candidate(self.has-focus, FocusCandidate.source-path);
+                                    root.set-focus-candidate(self.has-focus, FocusCandidate.source-root);
                                 }
                             }
 
-                            source-path-folder := Button {
+                            source-root-folder := Button {
                                 text: "";
                             }
                         }
@@ -136,15 +136,15 @@ export component AppWindow inherits Window {
                     title: "Output";
                     VerticalLayout {
                         HorizontalLayout {
-                            output-path := LineEdit {
+                            output-root := LineEdit {
                                 placeholder-text: "Relative path";
                                 property <bool> _: self.has-focus;
                                 changed has-focus => {
-                                    root.set-focus-candidate(self.has-focus, FocusCandidate.output-path);
+                                    root.set-focus-candidate(self.has-focus, FocusCandidate.output-root);
                                 }
                             }
 
-                            output-path-folder := Button {
+                            output-root-folder := Button {
                                 text: "";
                             }
                         }
@@ -210,7 +210,7 @@ export component AppWindow inherits Window {
                         clicked => {
                             root.store();
                             Backend.set-stored-and-available-engines();
-                            root.set-focus-candidate(self.has-focus, FocusCandidate.source-path);
+                            root.set-focus-candidate(self.has-focus, FocusCandidate.source-root);
                         }
                     }
 

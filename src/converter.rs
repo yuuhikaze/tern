@@ -1,6 +1,6 @@
-use std::sync::Arc;
+use std::{fs, path::Path, sync::Arc};
 
-use ignore::{types::TypesBuilder, WalkBuilder, WalkState};
+use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder, WalkState};
 use mlua::{Function, Lua};
 use tokio::sync::mpsc::Sender;
 
@@ -27,6 +27,7 @@ impl ConverterFactory {
         let (lock, cvar) = &*profiles_arc;
         let profiles = lock.lock().unwrap();
         drop(cvar.wait(profiles).unwrap());
+        let lua = Lua::new();
         Arc::try_unwrap(profiles_arc)
             .unwrap()
             .0
@@ -34,61 +35,74 @@ impl ConverterFactory {
             .unwrap()
             .iter()
             .for_each(|profile| {
-                println!("Running '{}' engine", profile.engine);
-                let mut types = TypesBuilder::new();
-                types
+                println!("\x1b[1mRunning '{}' engine\x1b[0m", profile.engine);
+                // ignore patterns
+                let mut override_builder = OverrideBuilder::new(&profile.source_root);
+                if let Some(ignore_pattern) = &profile.ignore_patterns {
+                    ignore_pattern.iter().for_each(|inverted_glob| {
+                        override_builder.add(&format!("!{}", inverted_glob)).unwrap();
+                    });
+                };
+                let override_construct = override_builder.build().unwrap();
+                // file extension matching
+                let mut types_builder = TypesBuilder::new();
+                types_builder
                     .add(
                         &profile.source_file_extension,
                         &format!("*.{}", &profile.source_file_extension),
                     )
                     .unwrap();
-                let types = types
+                let types = types_builder
                     .select(&profile.source_file_extension)
                     .build()
                     .unwrap();
-                let temp_ignore = temp_file::with_contents(
-                    profile
-                        .ignore_patterns
-                        .clone()
-                        .unwrap_or(vec!["".to_string()])
-                        .join("\n")
-                        .as_bytes(),
-                );
-                let mut walker = WalkBuilder::new(&profile.source_path);
-                let walker = walker
+                // walker configuration
+                let mut walk_builder = WalkBuilder::new(&profile.source_root);
+                walk_builder
                     .hidden(self.args.hidden)
-                    .ignore(false)
-                    .git_ignore(false)
-                    .git_global(false)
-                    .git_exclude(false)
-                    .require_git(false)
+                    .overrides(override_construct)
                     .types(types);
-                walker.add_ignore(temp_ignore);
-                walker.build_parallel().run(|| {
+                // load lua converter
+                let converter: Function = lua
+                    .load(controller::get_converters_dir().join(&profile.engine))
+                    .eval()
+                    .unwrap();
+                // matched files iteration
+                walk_builder.build_parallel().run(|| {
                     Box::new(|source_path| {
-                        if source_path.clone().unwrap().file_type().unwrap().is_file() {
-                            let lua = Lua::new();
-                            let converter: Function = lua
-                                .load(controller::get_converters_dir().join(&profile.engine))
-                                .eval()
-                                .unwrap();
-                            let source_file =
-                                String::from(source_path.unwrap().path().to_str().unwrap());
-                            let output_file = format!(
-                                "{}{}",
-                                &source_file
-                                    [..source_file.len() - profile.source_file_extension.len()],
-                                profile.output_file_extension
+                        let source_path = source_path.unwrap();
+                        if source_path.file_type().unwrap().is_file() {
+                            // create output path
+                            let output_path = Path::new(&profile.output_root).join(
+                                source_path
+                                    .path()
+                                    .strip_prefix(&profile.source_root)
+                                    .unwrap()
+                                    .parent()
+                                    .unwrap(),
                             );
-                            println!("Processing: {}", source_file);
-                            converter
-                                .call::<()>((
-                                    source_file.clone(),
+                            fs::create_dir_all(&output_path).unwrap();
+                            // define source_file, output_file
+                            let source_file = source_path.path();
+                            let output_file = output_path
+                                .join(source_path.file_name())
+                                .with_extension(&profile.output_file_extension);
+                            // notify conversion has started
+                            println!("Processing: {}", source_file.to_str().unwrap());
+                            // run converter
+                            let result = converter
+                                .call::<bool>((
+                                    source_file,
                                     output_file,
                                     profile.options.clone().unwrap_or(vec!["".to_string()]),
                                 ))
                                 .unwrap();
-                            println!("Conversion successful for: {}", source_file);
+                            // notify conversion status
+                            println!(
+                                "\x1b[2mSuccess [{}]: {}\x1b[0m",
+                                source_file.to_str().unwrap(),
+                                result
+                            );
                         }
                         WalkState::Continue
                     })

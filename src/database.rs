@@ -96,9 +96,9 @@ impl Database {
                 });
             Profile {
                 engine: row.try_get("engine").unwrap(),
-                source_path: row.try_get("source_path").unwrap(),
+                source_root: row.try_get("source_root").unwrap(),
                 source_file_extension: row.try_get("source_file_extension").unwrap(),
-                output_path: row.try_get("output_path").unwrap(),
+                output_root: row.try_get("output_root").unwrap(),
                 output_file_extension: row.try_get("output_file_extension").unwrap(),
                 options,
                 ignore_patterns,
@@ -117,15 +117,15 @@ impl Database {
             let ignore_patterns = flatten_vector(profile.ignore_patterns);
             sqlx::query(
                 r#"
-INSERT INTO profiles(engine, source_path, source_file_extension, output_path, output_file_extension, options, ignore_patterns)
+INSERT INTO profiles(engine, source_root, source_file_extension, output_root, output_file_extension, options, ignore_patterns)
 VALUES
     ($1, $2, $3, $4, $5, $6, $7)
 "#,
             )
             .bind(profile.engine)
-            .bind(profile.source_path)
+            .bind(profile.source_root)
             .bind(profile.source_file_extension)
-            .bind(profile.output_path)
+            .bind(profile.output_root)
             .bind(profile.output_file_extension)
             .bind(options)
             .bind(ignore_patterns)

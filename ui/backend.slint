@@ -1,9 +1,9 @@
 export enum FocusCandidate {
     add,
     conversion-engine,
-    source-path,
+    source-root,
     source-file-extension,
-    output-path,
+    output-root,
     output-file-extension,
     options,
     ignore-patterns,
@@ -15,9 +15,9 @@ export global Backend {
     out property <[FocusCandidate]> focus-candidate-list: [
         FocusCandidate.add,
         FocusCandidate.conversion-engine,
-        FocusCandidate.source-path,
+        FocusCandidate.source-root,
         FocusCandidate.source-file-extension,
-        FocusCandidate.output-path,
+        FocusCandidate.output-root,
         FocusCandidate.output-file-extension,
         FocusCandidate.options,
         FocusCandidate.ignore-patterns,
@@ -39,9 +39,9 @@ export global Backend {
     in property <[string]> stored-engines: [];
 
     in property <string> engine;
-    in property <string> source-path;
+    in property <string> source-root;
     in property <string> source-file-extension;
-    in property <string> output-path;
+    in property <string> output-root;
     in property <string> output-file-extension;
     in property <string> options;
     in property <string> ignore-patterns;

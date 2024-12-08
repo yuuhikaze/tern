@@ -124,9 +124,9 @@ impl AgentMessageBroker for Controller {
 #[derive(Debug)]
 pub struct Profile {
     pub engine: String,
-    pub source_path: String,
+    pub source_root: String,
     pub source_file_extension: String,
-    pub output_path: String,
+    pub output_root: String,
     pub output_file_extension: String,
     pub options: Option<Vec<String>>,
     pub ignore_patterns: Option<Vec<String>>,
