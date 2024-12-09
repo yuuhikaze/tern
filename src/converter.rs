@@ -38,9 +38,10 @@ impl ConverterFactory {
                 println!("\x1b[1mRunning '{}' engine\x1b[0m", profile.engine);
                 // ignore patterns
                 let mut override_builder = OverrideBuilder::new(&profile.source_root);
+                override_builder.inverted_matching(false);
                 if let Some(ignore_pattern) = &profile.ignore_patterns {
-                    ignore_pattern.iter().for_each(|inverted_glob| {
-                        override_builder.add(&format!("!{}", inverted_glob)).unwrap();
+                    ignore_pattern.iter().for_each(|glob| {
+                        override_builder.add(glob).unwrap();
                     });
                 };
                 let override_construct = override_builder.build().unwrap();
