@@ -1,10 +1,11 @@
 use std::{
     collections::BTreeMap,
     fs,
-    path::Path,
+    path::{Path, PathBuf},
     sync::{Arc, Condvar, Mutex},
 };
 
+use filetime::FileTime;
 use sqlx::{migrate::MigrateDatabase, Row, Sqlite, SqlitePool};
 use tokio::sync::oneshot::Sender;
 
@@ -81,20 +82,22 @@ impl Database {
             };
             let options = try_get_row_as_vector("options");
             let ignore_patterns = try_get_row_as_vector("ignore_patterns");
-            let metadata = sqlx::query("SELECT file, mtime FROM metadata WHERE id = $1;")
-                .bind(id)
-                .fetch_all(self.db.as_ref().unwrap())
-                .await
-                .unwrap()
-                .into_iter()
-                .fold(Option::<BTreeMap<String, i32>>::None, |acc, row| {
-                    let file: String = row.try_get("file").unwrap();
-                    let mtime: i32 = row.try_get("mtime").unwrap();
-                    let mut map = acc.unwrap_or_default();
-                    map.insert(file, mtime);
-                    Some(map)
-                });
+            let metadata =
+                sqlx::query("SELECT source_file, mtime FROM metadata WHERE profile_id = $1")
+                    .bind(id)
+                    .fetch_all(self.db.as_ref().unwrap())
+                    .await
+                    .unwrap()
+                    .into_iter()
+                    .fold(Option::<BTreeMap<String, i64>>::None, |acc, row| {
+                        let file = row.try_get("source_file").unwrap();
+                        let mtime = row.try_get("mtime").unwrap();
+                        let mut map = acc.unwrap_or_default();
+                        map.insert(file, mtime);
+                        Some(map)
+                    });
             Profile {
+                id: row.try_get("id").unwrap(),
                 engine: row.try_get("engine").unwrap(),
                 source_root: row.try_get("source_root").unwrap(),
                 source_file_extension: row.try_get("source_file_extension").unwrap(),
@@ -120,7 +123,7 @@ impl Database {
 INSERT INTO profiles(engine, source_root, source_file_extension, output_root, output_file_extension, options, ignore_patterns)
 VALUES
     ($1, $2, $3, $4, $5, $6, $7)
-"#,
+                "#,
             )
             .bind(profile.engine)
             .bind(profile.source_root)
@@ -133,5 +136,26 @@ VALUES
             .await
             .unwrap();
         }
+    }
+
+    /// 1. Inserts a new row if the source_file doesn't exist for this profile
+    /// 2. Updates the mtime if the source_file already exists
+    pub async fn update_metadata(&self, source_file: PathBuf, profile_id: u8) {
+        let mtime = FileTime::from_last_modification_time(&fs::metadata(&source_file).unwrap())
+            .unix_seconds();
+        sqlx::query(
+            r#"
+INSERT INTO metadata (profile_id, source_file, mtime)
+VALUES ($1, $2, $3)
+ON CONFLICT(profile_id, source_file) 
+DO UPDATE SET mtime = $3;
+        "#,
+        )
+        .bind(profile_id)
+        .bind(source_file.to_str().unwrap())
+        .bind(mtime)
+        .execute(self.db.as_ref().unwrap())
+        .await
+        .unwrap();
     }
 }

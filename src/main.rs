@@ -14,10 +14,7 @@ use converter::ConverterFactory;
 use database::Database;
 use interface::InterfaceBuilder;
 use std::sync::Arc;
-use tokio::{
-    sync::{mpsc, oneshot, Mutex},
-    task,
-};
+use tokio::sync::{mpsc, oneshot, Mutex};
 
 #[tokio::main]
 async fn main() {
@@ -44,19 +41,22 @@ async fn main() {
                 controller::ModelEvent::ReadEvent => {
                     let converter_args = ConverterArgs {
                         hidden: args.ignore_hidden_files,
+                        force: args.force,
+                        concurrent_profiles: args.concurrent_profiles,
                     };
-                    task::spawn(async move {
+                    controller::get_runtime_handle().spawn(async move {
                         ConverterFactory::build(mpsc_tx, converter_args).run().await
                     });
                 }
                 controller::ModelEvent::WriteEvent => {
                     let interface_args = InterfaceArgs { tui: args.tui };
                     let mpsc_tx = mpsc_tx.clone();
-                    task::spawn_blocking(|| {
-                        InterfaceBuilder::build(mpsc_tx, interface_args).spawn_and_run();
-                    })
-                    .await
-                    .unwrap();
+                    controller::get_runtime_handle()
+                        .spawn_blocking(|| {
+                            InterfaceBuilder::build(mpsc_tx, interface_args).spawn_and_run();
+                        })
+                        .await
+                        .unwrap();
                 }
             }
         } else {
@@ -77,6 +77,9 @@ async fn main() {
                 AgentEvent::WriteEvent(write_event) => match write_event {
                     WriteEvent::StoreProfile(arc) => {
                         db.lock().await.store_profile(arc).await;
+                    }
+                    WriteEvent::UpdateMetadata(met) => {
+                        db.lock().await.update_metadata(met.0, met.1).await;
                     }
                 },
                 AgentEvent::Quit => break,

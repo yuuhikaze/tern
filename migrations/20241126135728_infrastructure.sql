@@ -1,13 +1,4 @@
-CREATE TABLE metadata(
-    id INTEGER NOT NULL,
-    file TEXT NOT NULL,
-    mtime DATE NOT NULL
-);
-
-CREATE INDEX idx_metadata_id
-ON metadata (id);
-
-CREATE TABLE profiles(
+CREATE TABLE profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     engine VARCHAR(20) NOT NULL,
     source_root TEXT NOT NULL,
@@ -18,5 +9,13 @@ CREATE TABLE profiles(
     ignore_patterns TEXT
 );
 
-CREATE INDEX idx_engine
-ON profiles (engine);
+CREATE TABLE metadata (
+    profile_id INTEGER NOT NULL,
+    source_file TEXT NOT NULL,
+    mtime INTEGER NOT NULL,
+    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE,
+    UNIQUE(profile_id, source_file)
+);
+
+CREATE INDEX idx_engine ON profiles (engine);
+CREATE INDEX idx_metadata_profile_id ON metadata (profile_id);

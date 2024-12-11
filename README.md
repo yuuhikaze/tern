@@ -9,7 +9,7 @@ Tern is now in a usable status (beta), so no guarantees; also, some features are
 ### Features
 
 -   Recursively scans and converts files from a specified directory
--   Incrementally updates converted files [TODO]
+-   Incrementally updates converted files
 -   Converter: Outsources conversion work to an external program (scriptable through Lua)
 -   Stores and manages options related to the external program
 -   Converts only modified files and allows to select files through git ignore patterns
@@ -19,6 +19,8 @@ Tern is now in a usable status (beta), so no guarantees; also, some features are
 
 1.  Clone the repository and `cd` into it
 1.  Run: `cargo install --path . --locked`
+
+> Ensure you have the latest nightly compiler, tested on 1.85.0-nightly
 
 ### Usage
 
@@ -32,7 +34,7 @@ tern -h # Prints help
 ### Demo
 
 ```lua
--- /home/user/.local/share/tern/converters/markdown_to_pdf.lua
+-- /home/user/.local/share/tern/converters/pandoc.lua
 function concat_with_space(...)
   return table.concat({...}, " ")
 end

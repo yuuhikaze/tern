@@ -142,6 +142,7 @@ impl GraphicalInterface {
                 let options = construct_vector_from_getter!(get_options);
                 let ignore_patterns = construct_vector_from_getter!(get_ignore_patterns);
                 let profile_arc = Arc::new(Profile {
+                    id: 0,
                     engine: app.global::<Backend>().get_engine().to_string(),
                     source_root: app.global::<Backend>().get_source_root().to_string(),
                     source_file_extension: app

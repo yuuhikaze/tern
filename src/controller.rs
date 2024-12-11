@@ -26,6 +26,7 @@ pub enum ReadEvent {
 
 pub enum WriteEvent {
     StoreProfile(Option<Arc<Profile>>),
+    UpdateMetadata((PathBuf, u8)),
 }
 
 pub trait ModelMessageBroker {
@@ -46,6 +47,10 @@ pub trait AgentMessageBroker {
     async fn send_store_profile_event(
         tx: tokio::sync::mpsc::Sender<AgentEvent>,
         profile: Arc<Profile>,
+    );
+    async fn send_update_metadata_event(
+        tx: tokio::sync::mpsc::Sender<AgentEvent>,
+        metadata: (PathBuf, u8),
     );
     async fn send_quit_event(tx: tokio::sync::mpsc::Sender<AgentEvent>);
 }
@@ -114,6 +119,19 @@ impl AgentMessageBroker for Controller {
         }
     }
 
+    async fn send_update_metadata_event(
+        tx: tokio::sync::mpsc::Sender<AgentEvent>,
+        metadata: (PathBuf, u8),
+    ) {
+        if (tx
+            .send(AgentEvent::WriteEvent(WriteEvent::UpdateMetadata(metadata)))
+            .await)
+            .is_err()
+        {
+            panic!("Receiver dropped before message [AgentEvent::WriteEvent(WriteEvent::SaveProfile(arc))] could be sent");
+        }
+    }
+
     async fn send_quit_event(tx: tokio::sync::mpsc::Sender<AgentEvent>) {
         if (tx.send(AgentEvent::Quit).await).is_err() {
             println!("Receiver dropped before message [AgentEvent::Quit] could be sent");
@@ -123,6 +141,7 @@ impl AgentMessageBroker for Controller {
 
 #[derive(Debug)]
 pub struct Profile {
+    pub id: u8,
     pub engine: String,
     pub source_root: String,
     pub source_file_extension: String,
@@ -130,7 +149,7 @@ pub struct Profile {
     pub output_file_extension: String,
     pub options: Option<Vec<String>>,
     pub ignore_patterns: Option<Vec<String>>,
-    pub metadata: Option<BTreeMap<String, i32>>,
+    pub metadata: Option<BTreeMap<String, i64>>,
 }
 
 #[derive(Parser)]
@@ -142,6 +161,10 @@ pub struct ArgParser {
     pub profile_manager: bool,
     #[arg(short, long, default_value_t = true)]
     pub ignore_hidden_files: bool,
+    #[arg(short, long, action)]
+    pub force: bool,
+    #[arg(long, action)]
+    pub concurrent_profiles: bool,
 }
 
 pub struct DatabaseArgs {
@@ -154,6 +177,8 @@ pub struct InterfaceArgs {
 
 pub struct ConverterArgs {
     pub hidden: bool,
+    pub force: bool,
+    pub concurrent_profiles: bool,
 }
 
 static ASYNC_RUNTIME_HANDLE: LazyLock<Handle> = LazyLock::new(|| Handle::current());

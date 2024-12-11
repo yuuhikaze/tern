@@ -2,7 +2,7 @@
 name = "tern"
 authors = ["Steven Merino <yuuhikaze@protonmail.com>"]
 description = "Modular batch conversion interface"
-version = "1.5.0"
+version = "1.6.0"
 edition = "2021"
 build = "build.rs"
 
@@ -10,6 +10,7 @@ build = "build.rs"
 clap = { version = "4.5.21", features = ["derive"] }
 ctrlc = "3.4.5"
 directories = "5.0.1"
+filetime = "0.2.25"
 futures = "0.3.31"
 ignore = "0.4.23"
 indicatif = "0.17.9"
