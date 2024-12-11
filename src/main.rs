@@ -1,3 +1,4 @@
+#![feature(try_blocks)]
 #![feature(async_closure)]
 
 mod controller;
@@ -44,11 +45,9 @@ async fn main() {
                     let converter_args = ConverterArgs {
                         hidden: args.ignore_hidden_files,
                     };
-                    task::spawn_blocking(|| {
-                        ConverterFactory::build(mpsc_tx, converter_args).run();
-                    })
-                    .await
-                    .unwrap();
+                    task::spawn(async move {
+                        ConverterFactory::build(mpsc_tx, converter_args).run().await
+                    });
                 }
                 controller::ModelEvent::WriteEvent => {
                     let interface_args = InterfaceArgs { tui: args.tui };
