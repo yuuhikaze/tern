@@ -2,7 +2,7 @@
 name = "tern"
 authors = ["Steven Merino <yuuhikaze@protonmail.com>"]
 description = "Modular batch conversion interface"
-version = "1.6.0"
+version = "1.6.1"
 edition = "2021"
 build = "build.rs"
 
@@ -26,3 +26,9 @@ slint-build = "1.8.0"
 
 [patch.crates-io]
 ignore = { path = "../../patched-crates/ripgrep/crates/ignore" }
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"
