@@ -11,7 +11,7 @@ use tokio::sync::oneshot::Sender;
 
 use crate::controller::{Controller, DatabaseArgs, ModelEvent, ModelMessageBroker, Profile};
 
-const DB_URL: &str = "sqlite://.tern/tern.db";
+const DB_URL: &str = "sqlite://.tern/store.db";
 
 pub struct Database {
     tx: Option<Sender<ModelEvent>>,
