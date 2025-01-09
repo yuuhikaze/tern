@@ -1,5 +1,4 @@
 #![feature(try_blocks)]
-#![feature(async_closure)]
 
 mod controller;
 mod converter;
@@ -44,19 +43,16 @@ async fn main() {
                         force: args.force,
                         concurrent_profiles: args.concurrent_profiles,
                     };
-                    controller::get_runtime_handle().spawn(async move {
+                    controller::get_runtime_handle().spawn(async {
                         ConverterFactory::build(mpsc_tx, converter_args).run().await
                     });
                 }
                 controller::ModelEvent::WriteEvent => {
                     let interface_args = InterfaceArgs { tui: args.tui };
                     let mpsc_tx = mpsc_tx.clone();
-                    controller::get_runtime_handle()
-                        .spawn_blocking(|| {
-                            InterfaceBuilder::build(mpsc_tx, interface_args).spawn_and_run();
-                        })
-                        .await
-                        .unwrap();
+                    controller::get_runtime_handle().spawn_blocking(|| {
+                        InterfaceBuilder::build(mpsc_tx, interface_args).spawn_and_run();
+                    });
                 }
             }
         } else {

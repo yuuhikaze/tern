@@ -2,7 +2,7 @@
 name = "tern"
 authors = ["Steven Merino <yuuhikaze@protonmail.com>"]
 description = "Modular batch conversion interface"
-version = "1.6.2"
+version = "1.6.3"
 edition = "2021"
 build = "build.rs"
 
