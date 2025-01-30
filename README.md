@@ -20,7 +20,7 @@ Tern is now in a usable status (beta), so no guarantees; also, some features are
 1.  Clone the repository and `cd` into it
 1.  Run: `cargo install --path . --locked`
 
-> Ensure you have the latest nightly compiler, tested on 1.85.0-nightly
+> You require 1.86.0-nightly (or greater) Rust compiler
 
 ### Usage
 
