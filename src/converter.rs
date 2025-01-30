@@ -168,11 +168,23 @@ impl ConverterFactory {
                     .with_extension(&profile.output_file_extension);
                 // notify conversion has started
                 println!("Processing: {}", source_file.to_str().unwrap());
+                let escape_shell_chars = |path: &str| -> String {
+                    path.replace("&", "\\&")
+                        .replace(";", "\\;")
+                        .replace("|", "\\|")
+                        .replace(">", "\\>")
+                        .replace("<", "\\<")
+                        .replace("`", "\\`")
+                        .replace("$", "\\$")
+                        .replace("(", "\\(")
+                        .replace(")", "\\)")
+                        .replace(" ", "\\ ")
+                };
                 // run converter
                 let result = converter
                     .call::<bool>((
-                        source_file,
-                        output_file,
+                        escape_shell_chars(source_file.to_str().unwrap()),
+                        escape_shell_chars(output_file.to_str().unwrap()),
                         profile.options.clone().unwrap_or(vec!["".to_string()]),
                     ))
                     .unwrap();
