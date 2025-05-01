@@ -91,6 +91,11 @@ impl ConverterFactory {
         let mut walk_builder = WalkBuilder::new(&profile.source_root);
         walk_builder
             .hidden(self.args.hidden)
+            .parents(false)
+            .ignore(false)
+            .git_ignore(false)
+            .git_global(false)
+            .git_exclude(false)
             .overrides(override_construct);
         // load lua converter
         let converter: Function = lua
