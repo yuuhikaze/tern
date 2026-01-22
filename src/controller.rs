@@ -163,6 +163,8 @@ pub struct ArgParser {
     pub ignore_hidden_files: bool,
     #[arg(short, long, action)]
     pub force: bool,
+    #[arg(short, long, action)]
+    pub follow_symlinks: bool,
     #[arg(long, action)]
     pub concurrent_profiles: bool,
 }
@@ -179,6 +181,7 @@ pub struct ConverterArgs {
     pub hidden: bool,
     pub force: bool,
     pub concurrent_profiles: bool,
+    pub follow_symlinks: bool,
 }
 
 static ASYNC_RUNTIME_HANDLE: LazyLock<Handle> = LazyLock::new(|| Handle::current());

@@ -41,6 +41,7 @@ async fn main() {
                     let converter_args = ConverterArgs {
                         hidden: args.ignore_hidden_files,
                         force: args.force,
+                        follow_symlinks: args.follow_symlinks,
                         concurrent_profiles: args.concurrent_profiles,
                     };
                     controller::get_runtime_handle().spawn(async {

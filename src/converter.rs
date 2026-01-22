@@ -91,6 +91,7 @@ impl ConverterFactory {
         let mut walk_builder = WalkBuilder::new(&profile.source_root);
         walk_builder
             .hidden(self.args.hidden)
+            .follow_links(self.args.follow_symlinks)
             .parents(false)
             .ignore(false)
             .git_ignore(false)
