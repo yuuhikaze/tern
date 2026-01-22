@@ -163,7 +163,7 @@ pub struct ArgParser {
     pub ignore_hidden_files: bool,
     #[arg(short, long, action)]
     pub force: bool,
-    #[arg(short, long, action)]
+    #[arg(short = 's', long, action)]
     pub follow_symlinks: bool,
     #[arg(long, action)]
     pub concurrent_profiles: bool,
