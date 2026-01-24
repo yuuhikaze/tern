@@ -1,6 +1,6 @@
 use crate::controller::{self, AgentEvent, AgentMessageBroker, Controller, ConverterArgs, Profile};
 use filetime::FileTime;
-use ignore::{overrides::OverrideBuilder, WalkBuilder};
+use ignore::{gitignore::GitignoreBuilder, WalkBuilder};
 use indicatif::{ProgressBar, ProgressStyle};
 use mlua::{Function, Lua};
 use rayon::iter::{IntoParallelIterator, ParallelBridge, ParallelIterator};
@@ -79,14 +79,13 @@ impl ConverterFactory {
         }
         println!("\x1b[1mRunning '{}' engine\x1b[0m", profile.engine);
         // ignore patterns
-        let mut override_builder = OverrideBuilder::new(&profile.source_root);
-        override_builder.inverted_matching(false);
+        let mut ignore_builder = GitignoreBuilder::new(&profile.source_root);
         if let Some(ignore_pattern) = &profile.ignore_patterns {
             ignore_pattern.iter().for_each(|glob| {
-                override_builder.add(glob).unwrap();
+                ignore_builder.add_line(None, glob).unwrap();
             });
         };
-        let override_construct = override_builder.build().unwrap();
+        let ignore_matcher = ignore_builder.build().unwrap();
         // walker configuration
         let mut walk_builder = WalkBuilder::new(&profile.source_root);
         walk_builder
@@ -97,7 +96,11 @@ impl ConverterFactory {
             .git_ignore(false)
             .git_global(false)
             .git_exclude(false)
-            .overrides(override_construct);
+            .filter_entry(move |entry| {
+                !ignore_matcher
+                    .matched(entry.path(), entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false))
+                    .is_ignore()
+            });
         // load lua converter
         let converter: Function = lua
             .load(controller::get_converters_dir().join(&profile.engine))

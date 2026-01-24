@@ -24,8 +24,6 @@ tokio-util = "0.7.13"
 [build-dependencies]
 slint-build = "1.8.0"
 
-[patch.crates-io]
-ignore = { path = "../../patched-crates/ripgrep/crates/ignore" }
 
 [profile.release]
 strip = true
