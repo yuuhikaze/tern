@@ -11,9 +11,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         overlays = [ (import rust-overlay) ];
-        pkgs = import nixpkgs {
-          inherit system overlays;
-        };
+        pkgs = import nixpkgs { inherit system overlays; };
 
         rustVersion = pkgs.rust-bin.nightly."2026-01-21".default;
 
@@ -27,13 +25,11 @@
           version = "1.7.0";
           src = ./.;
 
-          cargoLock = {
-            lockFile = ./Cargo.lock;
-          };
+          cargoLock = { lockFile = ./Cargo.lock; };
 
           nativeBuildInputs = [ pkgs.pkg-config rustVersion ];
           buildInputs = with pkgs; [ lua5_4 sqlite openssl ];
-          
+
           # Only build the core binary
           cargoBuildFlags = [ "--bin" "tern-core" ];
           cargoBuildType = "release";
@@ -45,15 +41,9 @@
           version = "1.7.0";
           src = ./.;
 
-          cargoLock = {
-            lockFile = ./Cargo.lock;
-          };
+          cargoLock = { lockFile = ./Cargo.lock; };
 
-          nativeBuildInputs = with pkgs; [
-            pkg-config
-            rustVersion
-            cmake
-          ];
+          nativeBuildInputs = with pkgs; [ pkg-config rustVersion cmake ];
 
           buildInputs = with pkgs; [
             lua5_4
@@ -73,8 +63,7 @@
           cargoBuildType = "release";
           doCheck = false;
         };
-      in
-      {
+      in {
         packages.default = tern-core;
         packages.tern = tern;
         packages.tern-core = tern-core;
@@ -99,17 +88,18 @@
           ]);
 
           shellHook = ''
-            export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath (with pkgs; [
-              wayland
-              libxkbcommon
-              xorg.libX11
-              xorg.libXcursor
-              xorg.libXrandr
-              xorg.libXi
-              fontconfig
-            ])}
+            export LD_LIBRARY_PATH=${
+              pkgs.lib.makeLibraryPath (with pkgs; [
+                wayland
+                libxkbcommon
+                xorg.libX11
+                xorg.libXcursor
+                xorg.libXrandr
+                xorg.libXi
+                fontconfig
+              ])
+            }
           '';
         };
-      }
-    );
+      });
 }

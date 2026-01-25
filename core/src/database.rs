@@ -45,9 +45,7 @@ impl Database {
     }
 
     pub async fn migrate(&self) {
-        sqlx::migrate::Migrator::new(Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations"))
-            .await
-            .unwrap()
+        sqlx::migrate!("./migrations")
             .run(self.db.as_ref().unwrap())
             .await
             .unwrap();
