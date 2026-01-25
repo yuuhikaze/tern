@@ -36,6 +36,7 @@
           
           # Only build the core binary
           cargoBuildFlags = [ "--bin" "tern-core" ];
+          cargoBuildType = "release";
           doCheck = false;
         };
 
@@ -69,6 +70,7 @@
           ];
 
           cargoBuildFlags = [ "--bin" "tern" "--features" "gui" ];
+          cargoBuildType = "release";
           doCheck = false;
         };
       in
