@@ -114,7 +114,7 @@ impl GraphicalInterface {
                     ( $x:ident ) => {{
                         let column = app.global::<Backend>().$x().to_string();
                         if !column.is_empty() {
-                            Some(column.lines().map(|e| e.into()).collect())
+                            Some(column.lines().map(|e| e.to_string()).collect::<Vec<String>>())
                         } else {
                             None
                         }

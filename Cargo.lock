@@ -5359,6 +5359,17 @@ dependencies = [
 name = "tern"
 version = "1.7.0"
 dependencies = [
+ "futures",
+ "slint",
+ "slint-build",
+ "tern-core",
+ "tokio",
+]
+
+[[package]]
+name = "tern-core"
+version = "1.7.0"
+dependencies = [
  "clap",
  "ctrlc",
  "directories",
@@ -5368,8 +5379,6 @@ dependencies = [
  "indicatif",
  "mlua",
  "rayon",
- "slint",
- "slint-build",
  "sqlx",
  "tokio",
  "tokio-util",
