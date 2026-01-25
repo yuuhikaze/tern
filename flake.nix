@@ -15,7 +15,7 @@
           inherit system overlays;
         };
 
-        rustVersion = pkgs.rust-bin.nightly."2026-01-24".default;
+        rustVersion = pkgs.rust-bin.stable.latest.default;
 
         rustPlatform = pkgs.makeRustPlatform {
           rustc = rustVersion;
