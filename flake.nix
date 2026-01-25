@@ -15,7 +15,7 @@
           inherit system overlays;
         };
 
-        rustVersion = pkgs.rust-bin.stable.latest.default;
+        rustVersion = pkgs.rust-bin.nightly."2026-01-24".default;
 
         rustPlatform = pkgs.makeRustPlatform {
           rustc = rustVersion;
@@ -44,6 +44,7 @@
             fontconfig
             wayland
             libxkbcommon
+            libGL
             xorg.libX11
             xorg.libXcursor
             xorg.libXrandr
@@ -69,6 +70,7 @@
             fontconfig
             wayland
             libxkbcommon
+            libGL
             xorg.libX11
             xorg.libXcursor
             xorg.libXrandr
