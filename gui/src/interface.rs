@@ -1,42 +1,18 @@
-#[cfg(feature = "gui")]
 slint::include_modules!();
 
 use std::rc::Rc;
-
-#[cfg(feature = "gui")]
 use slint::{Model, SharedString, VecModel};
 
-use crate::controller::{self, AgentEvent, AgentMessageBroker, Controller, InterfaceArgs, Profile};
+use tern_core::controller::{self, AgentEvent, AgentMessageBroker, Controller, Profile};
+use tern_core::interface::Interface;
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
 
-pub trait Interface {
-    fn spawn_and_run(&mut self);
+pub struct GraphicalInterface {
+    pub tx: Option<Sender<AgentEvent>>,
+    pub app: Option<AppWindow>,
 }
 
-pub struct InterfaceBuilder;
-
-impl InterfaceBuilder {
-    pub fn build(tx: Sender<AgentEvent>, args: InterfaceArgs) -> Box<dyn Interface> {
-        #[cfg(feature = "gui")]
-        if !args.tui {
-            return Box::new(GraphicalInterface {
-                tx: Some(tx),
-                app: None,
-            });
-        }
-
-        Box::new(CommandLineInterface)
-    }
-}
-
-#[cfg(feature = "gui")]
-struct GraphicalInterface {
-    tx: Option<Sender<AgentEvent>>,
-    app: Option<AppWindow>,
-}
-
-#[cfg(feature = "gui")]
 impl Interface for GraphicalInterface {
     fn spawn_and_run(&mut self) {
         self.app = Some(AppWindow::new().unwrap());
@@ -47,7 +23,6 @@ impl Interface for GraphicalInterface {
     }
 }
 
-#[cfg(feature = "gui")]
 impl GraphicalInterface {
     fn manage_interface_related_callbacks(&self) {
         let app_weak = self.app.as_ref().unwrap().as_weak();
@@ -180,13 +155,5 @@ impl GraphicalInterface {
         };
         futures::executor::block_on(message_handle);
         drop(self.tx.take());
-    }
-}
-
-struct CommandLineInterface;
-
-impl Interface for CommandLineInterface {
-    fn spawn_and_run(&mut self) {
-        println!("Tern Core: Batch conversion complete (TUI not yet implemented).");
     }
 }
