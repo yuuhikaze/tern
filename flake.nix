@@ -31,7 +31,7 @@
             lockFile = ./Cargo.lock;
           };
 
-          nativeBuildInputs = [ rustVersion ];
+          nativeBuildInputs = [ pkgs.pkg-config rustVersion ];
           buildInputs = with pkgs; [ lua5_4 sqlite openssl ];
           
           # Only build the core binary
