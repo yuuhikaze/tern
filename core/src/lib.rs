@@ -11,11 +11,14 @@ use controller::{
 };
 use converter::ConverterFactory;
 use database::Database;
-use interface::InterfaceBuilder;
+use interface::Interface;
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot, Mutex};
 
-pub async fn run_app() {
+pub async fn run_app<F>(interface_factory: F)
+where
+    F: FnOnce(mpsc::Sender<AgentEvent>, InterfaceArgs) -> Box<dyn Interface>,
+{
     // data directory management
     controller::create_data_dir();
     // CLI options management
@@ -50,8 +53,10 @@ pub async fn run_app() {
                 controller::ModelEvent::WriteEvent => {
                     let interface_args = InterfaceArgs { tui: args.tui };
                     let mpsc_tx = mpsc_tx.clone();
-                    controller::get_runtime_handle().spawn_blocking(|| {
-                        InterfaceBuilder::build(mpsc_tx, interface_args).spawn_and_run();
+                    let interface = interface_factory(mpsc_tx, interface_args);
+                    controller::get_runtime_handle().spawn_blocking(move || {
+                        let mut interface = interface;
+                        interface.spawn_and_run();
                     });
                 }
             }
