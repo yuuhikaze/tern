@@ -24,7 +24,7 @@
 
         tern = rustPlatform.buildRustPackage {
           pname = "tern";
-          version = "1.6.6";
+          version = "1.7.0";
           src = ./.;
 
           cargoLock = {
