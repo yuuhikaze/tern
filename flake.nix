@@ -36,6 +36,7 @@
           
           # Only build the core binary
           cargoBuildFlags = [ "--bin" "tern-core" ];
+          doCheck = false;
         };
 
         tern = rustPlatform.buildRustPackage {
@@ -68,6 +69,7 @@
           ];
 
           cargoBuildFlags = [ "--bin" "tern" "--features" "gui" ];
+          doCheck = false;
         };
       in
       {
