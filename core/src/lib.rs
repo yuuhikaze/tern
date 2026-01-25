@@ -1,9 +1,9 @@
 #![feature(try_blocks)]
 
-mod controller;
-mod converter;
-mod database;
-mod interface;
+pub mod controller;
+pub mod converter;
+pub mod database;
+pub mod interface;
 
 use clap::Parser;
 use controller::{
@@ -15,8 +15,7 @@ use interface::InterfaceBuilder;
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot, Mutex};
 
-#[tokio::main]
-async fn main() {
+pub async fn run_app() {
     // data directory management
     controller::create_data_dir();
     // CLI options management

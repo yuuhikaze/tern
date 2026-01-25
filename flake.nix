@@ -22,6 +22,22 @@
           cargo = rustVersion;
         };
 
+        tern-core = rustPlatform.buildRustPackage {
+          pname = "tern-core";
+          version = "1.7.0";
+          src = ./.;
+
+          cargoLock = {
+            lockFile = ./Cargo.lock;
+          };
+
+          nativeBuildInputs = [ rustVersion ];
+          buildInputs = with pkgs; [ lua5_4 sqlite openssl ];
+          
+          # Only build the core binary
+          cargoBuildFlags = [ "--bin" "tern-core" ];
+        };
+
         tern = rustPlatform.buildRustPackage {
           pname = "tern";
           version = "1.7.0";
@@ -51,12 +67,13 @@
             xorg.libXi
           ];
 
-          # Slint needs some environment variables during build if it can't find libraries
-          # We might need to set SLINT_STYLE or similar if required.
+          cargoBuildFlags = [ "--bin" "tern" "--features" "gui" ];
         };
       in
       {
-        packages.default = tern;
+        packages.default = tern-core;
+        packages.tern = tern;
+        packages.tern-core = tern-core;
 
         devShells.default = pkgs.mkShell {
           buildInputs = [

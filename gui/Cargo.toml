@@ -1,0 +1,22 @@
+[package]
+name = "tern"
+authors = ["Steven Merino <yuuhikaze@protonmail.com>"]
+description = "Modular batch conversion interface (GUI)"
+version = "1.7.0"
+edition = "2021"
+build = "build.rs"
+
+[dependencies]
+slint = "1.8.0"
+tern-core = { path = "../core" }
+tokio = { version = "1.41.1", features = ["macros", "rt-multi-thread"] }
+futures = "0.3.31"
+
+[build-dependencies]
+slint-build = "1.8.0"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"

@@ -1,32 +1,3 @@
-[package]
-name = "tern"
-authors = ["Steven Merino <yuuhikaze@protonmail.com>"]
-description = "Modular batch conversion interface"
-version = "1.7.0"
-edition = "2021"
-build = "build.rs"
-
-[dependencies]
-clap = { version = "4.5.21", features = ["derive"] }
-ctrlc = "3.4.5"
-directories = "5.0.1"
-filetime = "0.2.25"
-futures = "0.3.31"
-ignore = "0.4.23"
-indicatif = "0.17.9"
-mlua = { version = "0.10.2", features = ["lua54", "async", "send"] }
-rayon = "1.10.0"
-slint = "1.8.0"
-sqlx = { version = "0.8.2", features = ["runtime-tokio", "sqlite", "tls-native-tls"] }
-tokio = { version = "1.41.1", features = ["macros", "rt-multi-thread"] }
-tokio-util = "0.7.13"
-
-[build-dependencies]
-slint-build = "1.8.0"
-
-
-[profile.release]
-strip = true
-lto = true
-codegen-units = 1
-panic = "abort"
+[workspace]
+members = ["core", "gui"]
+resolver = "2"
